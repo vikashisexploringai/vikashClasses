@@ -4,7 +4,7 @@
   "questions": [
     {
       "id": "basic_maths_001",
-      "format": "fraction",        // <-- Specify format type
+      "format": "fraction",
       "question": "1/4 + 2/4",
       "options": ["3/4", "3/8", "1/2", "2/4"],
       "correct": "3/4",
@@ -20,7 +20,7 @@
     },
     {
       "id": "basic_maths_003",
-      "format": "surds",           // <-- Different format
+      "format": "surds",
       "question": "Simplify √12 + √3",
       "options": ["3√3", "2√3", "√15", "4√3"],
       "correct": "3√3",
@@ -28,7 +28,7 @@
     },
     {
       "id": "basic_maths_004",
-      "format": "mixed",            // <-- Mixed content
+      "format": "mixed",
       "question": "Solve: 1/2 + √9",
       "options": ["3.5", "4", "3", "3.5"],
       "correct": "3.5",
