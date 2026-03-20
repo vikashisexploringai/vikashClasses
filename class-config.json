@@ -1,0 +1,41 @@
+{
+  "requireCodeForAll": false,
+  "classes": [
+    {
+      "id": "class-1",
+      "name": "Class 1",
+      "description": "Basic Mathematics and English",
+      "code": "CLASS1_2024",
+      "codeRequired": true,
+      "subjects": ["math", "english"],
+      "theme": "#2563eb"
+    },
+    {
+      "id": "class-2",
+      "name": "Class 2",
+      "description": "Foundational concepts",
+      "code": "CLASS2_2024",
+      "codeRequired": true,
+      "subjects": ["math", "english", "science"],
+      "theme": "#16a34a"
+    },
+    {
+      "id": "class-surat",
+      "name": "Class Surat",
+      "description": "Gujarati medium instruction",
+      "code": "SURAT123",
+      "codeRequired": true,
+      "subjects": ["math", "english", "science", "gujarati"],
+      "theme": "#dc2626"
+    },
+    {
+      "id": "my-village",
+      "name": "My Village",
+      "description": "Open learning community",
+      "code": null,
+      "codeRequired": false,
+      "subjects": ["math", "science"],
+      "theme": "#8b5cf6"
+    }
+  ]
+}
