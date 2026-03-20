@@ -1,0 +1,40 @@
+{
+  "appName": "vikashClasses",
+  "version": "1.0.0",
+  "testSettings": {
+    "defaultQuestionsPerTest": 20,
+    "maxQuestionsPerTest": 50,
+    "minQuestionsPerTest": 5,
+    "randomizeQuestions": true
+  },
+  "subjects": [
+    {
+      "id": "math",
+      "name": "Mathematics",
+      "icon": "📐",
+      "color": "#2563eb",
+      "description": "Numbers, fractions, and problem solving"
+    },
+    {
+      "id": "english",
+      "name": "English",
+      "icon": "📚",
+      "color": "#16a34a",
+      "description": "Reading, writing, and grammar"
+    },
+    {
+      "id": "science",
+      "name": "Science",
+      "icon": "🔬",
+      "color": "#dc2626",
+      "description": "Biology, physics, and chemistry"
+    },
+    {
+      "id": "gujarati",
+      "name": "ગુજરાતી",
+      "icon": "📖",
+      "color": "#8b5cf6",
+      "description": "Gujarati language and literature"
+    }
+  ]
+}
