@@ -362,7 +362,7 @@ async function handleLogin() {
         loginBtn.textContent = 'Logging in...';
         loginBtn.disabled = true;
         
-        const email = `${username}@vikashclasses.local`;
+        const email = `${username}@mathriyaz.local`;
         
         await auth.setPersistence(
             rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
@@ -527,7 +527,7 @@ async function handleRegister() {
         
         registerBtn.textContent = 'Creating Account...';
         
-        const email = `${username}@vikashclasses.local`;
+        const email = `${username}@mathriyaz.local`;
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
