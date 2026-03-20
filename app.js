@@ -1,4 +1,4 @@
-// app.js - Main application controller
+// app.js - Main application controller for vikashClasses
 
 // ===== APP STATE =====
 const AppState = {
@@ -11,6 +11,14 @@ const AppState = {
     classConfig: null,
     progress: {}
 };
+
+// Store temporary verification state
+let passwordResetVerified = false;
+let passwordResetUsername = null;
+let passwordResetEmail = null;
+let passwordResetDay = null;
+let passwordResetMonth = null;
+let passwordResetYear = null;
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -28,13 +36,67 @@ if (!firebase.apps.length) {
 }
 
 const auth = firebase.auth();
+
+// ===== IMPORTANT: Connect to vikashclasses database =====
 const db = firebase.firestore();
+// Set the database ID to use your new vikashclasses database
+db.settings({
+    databaseId: "vikashclasses-db"  // Your new database for this app
+});
+console.log('Connected to vikashclasses-db database');
+
+// ===== TOAST NOTIFICATION SYSTEM =====
+function showToast(message, type = 'info', duration = 3000) {
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
+// ===== INLINE MESSAGE HELPER =====
+function showInlineMessage(inputId, message, type = 'error') {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    
+    const existingMessage = input.parentElement.querySelector('.inline-message');
+    if (existingMessage) existingMessage.remove();
+    
+    input.classList.add('input-error');
+    
+    const messageEl = document.createElement('div');
+    messageEl.className = `inline-message inline-${type}`;
+    messageEl.textContent = message;
+    
+    input.parentElement.appendChild(messageEl);
+    
+    input.addEventListener('input', function clearError() {
+        input.classList.remove('input-error');
+        if (messageEl.parentElement) messageEl.remove();
+        input.removeEventListener('input', clearError);
+    }, { once: true });
+}
+
+function clearInlineMessages() {
+    document.querySelectorAll('.inline-message').forEach(el => el.remove());
+    document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+}
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', async () => {
     await loadConfig();
     await loadClassConfig();
-    initDarkMode();
+    initDarkMode(); 
     renderLogin();
 });
 
@@ -46,6 +108,7 @@ async function loadConfig() {
         console.log('Config loaded:', AppState.config);
     } catch (error) {
         console.error('Failed to load config:', error);
+        showError('Failed to load app configuration');
     }
 }
 
@@ -56,12 +119,14 @@ async function loadClassConfig() {
         console.log('Class config loaded:', AppState.classConfig);
     } catch (error) {
         console.error('Failed to load class config:', error);
+        showError('Failed to load class configuration');
     }
 }
 
 // ===== AUTH STATE OBSERVER =====
 auth.onAuthStateChanged(async (user) => {
     if (user) {
+        console.log('User signed in:', user.email);
         AppState.currentUser = {
             uid: user.uid,
             email: user.email,
@@ -70,16 +135,843 @@ auth.onAuthStateChanged(async (user) => {
         
         await loadUserProgress(user.uid);
         
-        if (['login', 'register'].includes(AppState.currentView)) {
+        if (['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
             renderClassSelection();
         }
     } else {
+        console.log('User signed out');
         AppState.currentUser = null;
-        if (!['login', 'register'].includes(AppState.currentView)) {
+        
+        if (!['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
             renderLogin();
         }
     }
 });
+
+// ===== FORMATTER LOADING =====
+async function loadQuestionFormatter(question) {
+    try {
+        // Dynamic import based on format type
+        const format = question.format || 'text';
+        
+        if (format === 'fraction' || format === 'surds' || format === 'mixed' || format === 'percentage') {
+            const module = await import('./shared/formatters/math-formatter.js');
+            return module.default;
+        } else if (format === 'chemistry') {
+            const module = await import('./shared/formatters/chemistry-formatter.js');
+            return module.default;
+        } else {
+            const module = await import('./shared/formatters/default-formatter.js');
+            return module.default;
+        }
+    } catch (error) {
+        console.warn('Error loading formatter, using default');
+        const module = await import('./shared/formatters/default-formatter.js');
+        return module.default;
+    }
+}
+
+// ===== HELPER FUNCTIONS =====
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function formatTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+        return `${hours}.${Math.floor(minutes/6)} hrs`;
+    } else if (minutes > 0) {
+        return `${minutes} mins`;
+    } else {
+        return `${seconds} sec`;
+    }
+}
+
+function formatDate(timestamp) {
+    if (!timestamp) return 'Unknown';
+    
+    const date = timestamp.toDate();
+    const now = new Date();
+    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+        return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays === 1) {
+        return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (diffDays < 7) {
+        return `${diffDays} days ago`;
+    } else {
+        return date.toLocaleDateString();
+    }
+}
+
+function loadSubjectCSS(subjectId) {
+    const existing = document.getElementById('subject-css');
+    if (existing) existing.remove();
+    
+    const link = document.createElement('link');
+    link.id = 'subject-css';
+    link.rel = 'stylesheet';
+    link.href = `${subjectId}.css`;
+    document.head.appendChild(link);
+}
+
+function updateHeader(title, showBackButton = false, backFunction = null) {
+    const header = document.getElementById('app-header');
+    if (!header) return;
+    
+    if (showBackButton) {
+        header.innerHTML = `
+            <div class="centered-header">
+                <button class="header-back-btn" onclick="${backFunction}">‹</button>
+                <span class="header-title">${title}</span>
+                <div class="header-placeholder"></div>
+            </div>
+        `;
+    } else {
+        header.innerHTML = `<h1>${title}</h1>`;
+    }
+}
+
+function updateBottomNav(activeView) {
+    const nav = document.getElementById('bottom-nav');
+    if (!nav) return;
+    
+    if (['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(activeView)) {
+        nav.style.display = 'none';
+        return;
+    }
+    
+    nav.style.display = 'flex';
+    nav.innerHTML = `
+        <button class="nav-item ${activeView === 'classSelection' ? 'active' : ''}" onclick="renderClassSelection()">
+            <span class="nav-icon">🏠</span>
+            <span>Classes</span>
+        </button>
+        <button class="nav-item ${activeView === 'progress' ? 'active' : ''}" onclick="renderProgress()">
+            <span class="nav-icon">📊</span>
+            <span>Progress</span>
+        </button>
+        <button class="nav-item ${activeView === 'profile' ? 'active' : ''}" onclick="renderProfile()">
+            <span class="nav-icon">👤</span>
+            <span>Profile</span>
+        </button>
+        <button class="nav-item ${activeView === 'settings' ? 'active' : ''}" onclick="renderSettings()">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+        </button>
+    `;
+}
+
+function showError(message) {
+    const content = document.getElementById('main-content');
+    if (content) {
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #ef4444;">
+                <p>${message}</p>
+                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px;">Retry</button>
+            </div>
+        `;
+    }
+}
+
+async function loadUserProgress(uid) {
+    try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            AppState.progress = userData.progress || {};
+            AppState.userDisplayName = userData.displayName;
+            console.log('User progress loaded:', AppState.progress);
+        }
+    } catch (error) {
+        console.error('Error loading user progress:', error);
+    }
+}
+
+// ===== AUTH VIEWS =====
+function renderLogin() {
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    AppState.currentView = 'login';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Welcome Back');
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Login to vikashClasses</h2>
+                
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" class="auth-input">
+                </div>
+                
+                <div class="form-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Remember me</span>
+                    </label>
+                </div>
+                
+                <button class="auth-btn" onclick="handleLogin()">Login</button>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="renderForgotUsername()">Forgot Username?</button>
+                    <button class="link-btn" onclick="renderForgotPassword()">Forgot Password?</button>
+                    <button class="link-btn" onclick="renderRegister()">Create Account</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('login');
+}
+
+async function handleLogin() {
+    const username = document.getElementById('username')?.value;
+    const password = document.getElementById('password')?.value;
+    const rememberMe = document.getElementById('rememberMe')?.checked;
+    
+    clearInlineMessages();
+    
+    if (!username || !password) {
+        if (!username) showInlineMessage('username', 'Please enter username');
+        if (!password) showInlineMessage('password', 'Please enter password');
+        return;
+    }
+    
+    try {
+        const loginBtn = document.querySelector('.auth-btn');
+        loginBtn.textContent = 'Logging in...';
+        loginBtn.disabled = true;
+        
+        const email = `${username}@vikashclasses.local`;
+        
+        await auth.setPersistence(
+            rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
+        );
+        
+        await auth.signInWithEmailAndPassword(email, password);
+        showToast('Login successful!', 'success');
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        
+        if (error.code === 'auth/user-not-found') {
+            showInlineMessage('username', 'Username not found');
+        } else if (error.code === 'auth/wrong-password') {
+            showInlineMessage('password', 'Incorrect password');
+        } else if (error.code === 'auth/invalid-email') {
+            showInlineMessage('username', 'Invalid username format');
+        } else {
+            showToast(error.message, 'error');
+        }
+        
+        const loginBtn = document.querySelector('.auth-btn');
+        loginBtn.textContent = 'Login';
+        loginBtn.disabled = false;
+    }
+}
+
+function renderRegister() {
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    AppState.currentView = 'register';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Create Account');
+    
+    const today = new Date();
+    const maxYear = today.getFullYear() - 2;
+    const minYear = today.getFullYear() - 100;
+    
+    let yearOptions = '';
+    for (let year = maxYear; year >= minYear; year--) {
+        yearOptions += `<option value="${year}">${year}</option>`;
+    }
+    
+    let monthOptions = '';
+    for (let month = 1; month <= 12; month++) {
+        monthOptions += `<option value="${month}">${month}</option>`;
+    }
+    
+    let dayOptions = '';
+    for (let day = 1; day <= 31; day++) {
+        dayOptions += `<option value="${day}">${day}</option>`;
+    }
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Join vikashClasses</h2>
+                
+                <div class="form-group">
+                    <label for="fullName">Child's Full Name</label>
+                    <input type="text" id="fullName" placeholder="e.g., John Doe" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="username">Choose Username</label>
+                    <input type="text" id="username" placeholder="e.g., johndoe123" class="auth-input">
+                    <small style="color: #64748b; font-size: 12px; margin-top: 4px; display: block;">Letters, numbers, and underscores only</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="dobDay" class="auth-input" style="flex: 1;">
+                            <option value="">Day</option>
+                            ${dayOptions}
+                        </select>
+                        <select id="dobMonth" class="auth-input" style="flex: 1;">
+                            <option value="">Month</option>
+                            ${monthOptions}
+                        </select>
+                        <select id="dobYear" class="auth-input" style="flex: 1;">
+                            <option value="">Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="At least 6 characters" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" placeholder="Re-enter password" class="auth-input">
+                </div>
+                
+                <div class="form-row">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="rememberMe" checked>
+                        <span>Remember me</span>
+                    </label>
+                </div>
+                
+                <button class="auth-btn" onclick="handleRegister()">Create Account</button>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="renderLogin()">Already have an account? Login</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('register');
+}
+
+async function handleRegister() {
+    const fullName = document.getElementById('fullName')?.value;
+    const username = document.getElementById('username')?.value;
+    const day = document.getElementById('dobDay')?.value;
+    const month = document.getElementById('dobMonth')?.value;
+    const year = document.getElementById('dobYear')?.value;
+    const password = document.getElementById('password')?.value;
+    const confirmPassword = document.getElementById('confirmPassword')?.value;
+    const rememberMe = document.getElementById('rememberMe')?.checked;
+    
+    clearInlineMessages();
+    let hasError = false;
+    
+    if (!fullName) { showInlineMessage('fullName', 'Please enter full name'); hasError = true; }
+    if (!username) { showInlineMessage('username', 'Please choose a username'); hasError = true; }
+    else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        showInlineMessage('username', 'Username can only contain letters, numbers, and underscores');
+        hasError = true;
+    }
+    
+    if (!day || !month || !year) { showInlineMessage('dobDay', 'Please select date of birth'); hasError = true; }
+    if (!password) { showInlineMessage('password', 'Please enter password'); hasError = true; }
+    else if (password.length < 6) { showInlineMessage('password', 'Password must be at least 6 characters'); hasError = true; }
+    
+    if (!confirmPassword) { showInlineMessage('confirmPassword', 'Please confirm password'); hasError = true; }
+    else if (password !== confirmPassword) { showInlineMessage('confirmPassword', 'Passwords do not match'); hasError = true; }
+    
+    if (hasError) return;
+    
+    try {
+        const registerBtn = document.querySelector('.auth-btn');
+        registerBtn.textContent = 'Checking...';
+        registerBtn.disabled = true;
+        
+        const snapshot = await db.collection('users').where('username', '==', username).get();
+        
+        if (!snapshot.empty) {
+            showInlineMessage('username', 'Username already taken. Please choose another.');
+            registerBtn.textContent = 'Create Account';
+            registerBtn.disabled = false;
+            return;
+        }
+        
+        registerBtn.textContent = 'Creating Account...';
+        
+        const email = `${username}@vikashclasses.local`;
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        await user.updateProfile({ displayName: fullName });
+        
+        await auth.setPersistence(
+            rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
+        );
+        
+        await db.collection('users').doc(user.uid).set({
+            uid: user.uid,
+            username: username,
+            displayName: fullName,
+            email: email,
+            dateOfBirth: { day: parseInt(day), month: parseInt(month), year: parseInt(year) },
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            enrolledClasses: [],
+            overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 }
+        });
+        
+        showToast('Account created successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        
+        if (error.code === 'auth/email-already-in-use') {
+            showInlineMessage('username', 'Username already taken. Please choose another.');
+        } else {
+            showToast('Registration failed: ' + error.message, 'error');
+        }
+        
+        const registerBtn = document.querySelector('.auth-btn');
+        registerBtn.textContent = 'Create Account';
+        registerBtn.disabled = false;
+    }
+}
+
+function renderForgotUsername() {
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    AppState.currentView = 'forgotUsername';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Find Username');
+    
+    const today = new Date();
+    const maxYear = today.getFullYear() - 2;
+    const minYear = today.getFullYear() - 100;
+    
+    let yearOptions = '';
+    for (let year = maxYear; year >= minYear; year--) {
+        yearOptions += `<option value="${year}">${year}</option>`;
+    }
+    
+    let monthOptions = '';
+    for (let month = 1; month <= 12; month++) {
+        monthOptions += `<option value="${month}">${month}</option>`;
+    }
+    
+    let dayOptions = '';
+    for (let day = 1; day <= 31; day++) {
+        dayOptions += `<option value="${day}">${day}</option>`;
+    }
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Find Your Username</h2>
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
+                    Enter your child's full name and date of birth to retrieve the username.
+                </p>
+                
+                <div class="form-group">
+                    <label for="fullName">Child's Full Name</label>
+                    <input type="text" id="fullName" placeholder="e.g., John Doe" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="dobDay" class="auth-input" style="flex: 1;">
+                            <option value="">Day</option>
+                            ${dayOptions}
+                        </select>
+                        <select id="dobMonth" class="auth-input" style="flex: 1;">
+                            <option value="">Month</option>
+                            ${monthOptions}
+                        </select>
+                        <select id="dobYear" class="auth-input" style="flex: 1;">
+                            <option value="">Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                </div>
+                
+                <button class="auth-btn" onclick="handleFindUsername()">Find Username</button>
+                
+                <div id="usernameResult" style="display: none; margin: 20px 0; padding: 16px; background: #f0f9ff; border-radius: 12px; text-align: center;">
+                    <p style="color: #0369a1; margin-bottom: 4px;">Your username is:</p>
+                    <p id="foundUsername" style="font-size: 20px; font-weight: 600; color: #0f172a;"></p>
+                </div>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="renderLogin()">Back to Login</button>
+                    <button class="link-btn" onclick="renderForgotPassword()">Forgot Password?</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('forgotUsername');
+}
+
+async function handleFindUsername() {
+    const fullName = document.getElementById('fullName')?.value;
+    const day = document.getElementById('dobDay')?.value;
+    const month = document.getElementById('dobMonth')?.value;
+    const year = document.getElementById('dobYear')?.value;
+    
+    clearInlineMessages();
+    
+    if (!fullName || !day || !month || !year) {
+        if (!fullName) showInlineMessage('fullName', 'Please enter full name');
+        if (!day || !month || !year) showInlineMessage('dobDay', 'Please select date of birth');
+        return;
+    }
+    
+    try {
+        const findBtn = document.querySelector('.auth-btn');
+        findBtn.textContent = 'Searching...';
+        findBtn.disabled = true;
+        
+        const snapshot = await db.collection('users')
+            .where('displayName', '==', fullName)
+            .where('dateOfBirth.day', '==', parseInt(day))
+            .where('dateOfBirth.month', '==', parseInt(month))
+            .where('dateOfBirth.year', '==', parseInt(year))
+            .get();
+        
+        findBtn.textContent = 'Find Username';
+        findBtn.disabled = false;
+        
+        if (snapshot.empty) {
+            showToast('No account found with these details', 'error');
+            return;
+        }
+        
+        const userData = snapshot.docs[0].data();
+        
+        document.getElementById('foundUsername').textContent = userData.username;
+        document.getElementById('usernameResult').style.display = 'block';
+        showToast('Username found!', 'success');
+        
+    } catch (error) {
+        console.error('Error finding username:', error);
+        showToast('An error occurred. Please try again.', 'error');
+        
+        const findBtn = document.querySelector('.auth-btn');
+        findBtn.textContent = 'Find Username';
+        findBtn.disabled = false;
+    }
+}
+
+function renderForgotPassword() {
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    AppState.currentView = 'forgotPassword';
+    const content = document.getElementById('main-content');
+    
+    passwordResetVerified = false;
+    passwordResetUsername = null;
+    
+    updateHeader('Reset Password');
+    
+    const today = new Date();
+    const maxYear = today.getFullYear() - 2;
+    const minYear = today.getFullYear() - 100;
+    
+    let yearOptions = '';
+    for (let year = maxYear; year >= minYear; year--) {
+        yearOptions += `<option value="${year}">${year}</option>`;
+    }
+    
+    let monthOptions = '';
+    for (let month = 1; month <= 12; month++) {
+        monthOptions += `<option value="${month}">${month}</option>`;
+    }
+    
+    let dayOptions = '';
+    for (let day = 1; day <= 31; day++) {
+        dayOptions += `<option value="${day}">${day}</option>`;
+    }
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Reset Password</h2>
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
+                    Step 1: Verify your identity
+                </p>
+                
+                <div class="form-group">
+                    <label for="resetUsername">Username</label>
+                    <input type="text" id="resetUsername" placeholder="Enter your username" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="resetDobDay" class="auth-input" style="flex: 1;">
+                            <option value="">Day</option>
+                            ${dayOptions}
+                        </select>
+                        <select id="resetDobMonth" class="auth-input" style="flex: 1;">
+                            <option value="">Month</option>
+                            ${monthOptions}
+                        </select>
+                        <select id="resetDobYear" class="auth-input" style="flex: 1;">
+                            <option value="">Year</option>
+                            ${yearOptions}
+                        </select>
+                    </div>
+                </div>
+                
+                <button class="auth-btn" onclick="handleVerifyIdentity()">Verify Identity</button>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="renderLogin()">Back to Login</button>
+                    <button class="link-btn" onclick="renderForgotUsername()">Forgot Username?</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('forgotPassword');
+}
+
+async function handleVerifyIdentity() {
+    const username = document.getElementById('resetUsername')?.value;
+    const day = document.getElementById('resetDobDay')?.value;
+    const month = document.getElementById('resetDobMonth')?.value;
+    const year = document.getElementById('resetDobYear')?.value;
+    
+    clearInlineMessages();
+    
+    if (!username || !day || !month || !year) {
+        if (!username) showInlineMessage('resetUsername', 'Please enter username');
+        if (!day || !month || !year) showInlineMessage('resetDobDay', 'Please select date of birth');
+        return;
+    }
+    
+    try {
+        const verifyBtn = document.querySelector('.auth-btn');
+        verifyBtn.textContent = 'Verifying...';
+        verifyBtn.disabled = true;
+        
+        const snapshot = await db.collection('users').where('username', '==', username).get();
+        
+        if (snapshot.empty) {
+            showInlineMessage('resetUsername', 'Username not found');
+            verifyBtn.textContent = 'Verify Identity';
+            verifyBtn.disabled = false;
+            return;
+        }
+        
+        const userData = snapshot.docs[0].data();
+        
+        if (userData.dateOfBirth.day !== parseInt(day) ||
+            userData.dateOfBirth.month !== parseInt(month) ||
+            userData.dateOfBirth.year !== parseInt(year)) {
+            showInlineMessage('resetDobDay', 'Date of birth does not match');
+            verifyBtn.textContent = 'Verify Identity';
+            verifyBtn.disabled = false;
+            return;
+        }
+        
+        passwordResetVerified = true;
+        passwordResetUsername = username;
+        passwordResetDay = day;
+        passwordResetMonth = month;
+        passwordResetYear = year;
+        
+        renderResetPassword();
+        
+    } catch (error) {
+        console.error('Verification error:', error);
+        showToast('Verification failed. Please try again.', 'error');
+        
+        const verifyBtn = document.querySelector('.auth-btn');
+        verifyBtn.textContent = 'Verify Identity';
+        verifyBtn.disabled = false;
+    }
+}
+
+function renderResetPassword() {
+    if (!passwordResetVerified) {
+        renderForgotPassword();
+        return;
+    }
+    
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    AppState.currentView = 'resetPassword';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Reset Password');
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Reset Password</h2>
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
+                    Step 2: Set new password for <strong>${passwordResetUsername}</strong>
+                </p>
+                
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="At least 6 characters" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" placeholder="Re-enter new password" class="auth-input">
+                </div>
+                
+                <button class="auth-btn" onclick="handleCloudPasswordReset()">Update Password</button>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="renderForgotPassword()">Start Over</button>
+                    <button class="link-btn" onclick="renderLogin()">Back to Login</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('resetPassword');
+}
+
+async function handleCloudPasswordReset() {
+    const newPassword = document.getElementById('newPassword')?.value;
+    const confirmPassword = document.getElementById('confirmNewPassword')?.value;
+    
+    clearInlineMessages();
+    let hasError = false;
+    
+    if (!newPassword) { showInlineMessage('newPassword', 'Please enter new password'); hasError = true; }
+    else if (newPassword.length < 6) { showInlineMessage('newPassword', 'Password must be at least 6 characters'); hasError = true; }
+    
+    if (!confirmPassword) { showInlineMessage('confirmNewPassword', 'Please confirm password'); hasError = true; }
+    else if (newPassword !== confirmPassword) { showInlineMessage('confirmNewPassword', 'Passwords do not match'); hasError = true; }
+    
+    if (hasError) return;
+    
+    try {
+        const resetBtn = document.querySelector('.auth-btn');
+        resetBtn.textContent = 'Updating...';
+        resetBtn.disabled = true;
+        
+        const response = await fetch('https://us-central1-database-367af.cloudfunctions.net/resetPassword', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: passwordResetUsername,
+                day: parseInt(passwordResetDay),
+                month: parseInt(passwordResetMonth),
+                year: parseInt(passwordResetYear),
+                newPassword
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showToast('Password updated successfully! Please login with your new password.', 'success');
+            
+            passwordResetVerified = false;
+            passwordResetUsername = null;
+            passwordResetDay = passwordResetMonth = passwordResetYear = null;
+            
+            renderLogin();
+        } else {
+            throw new Error(result.error || 'Failed to reset password');
+        }
+        
+    } catch (error) {
+        console.error('Password reset error:', error);
+        showToast(error.message, 'error');
+        
+        const resetBtn = document.querySelector('.auth-btn');
+        resetBtn.textContent = 'Update Password';
+        resetBtn.disabled = false;
+    }
+}
+
+function handleLogout() {
+    const content = document.getElementById('main-content');
+    window.previousContent = content.innerHTML;
+    
+    const logoutModalHTML = `
+        <div class="logout-modal-overlay">
+            <div class="logout-modal">
+                <div class="logout-modal-icon">👋</div>
+                <h3 class="logout-modal-title">Logout?</h3>
+                <p class="logout-modal-message">
+                    Are you sure you want to logout?
+                </p>
+                <div class="logout-modal-buttons">
+                    <button class="logout-modal-cancel" onclick="cancelLogout()">Cancel</button>
+                    <button class="logout-modal-confirm" onclick="confirmLogout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = logoutModalHTML;
+}
+
+window.cancelLogout = function() {
+    const content = document.getElementById('main-content');
+    if (window.previousContent) {
+        content.innerHTML = window.previousContent;
+    } else {
+        renderSettings();
+    }
+};
+
+async function confirmLogout() {
+    try {
+        showToast('Logging out...', 'info');
+        await auth.signOut();
+        renderLogin();
+        showToast('Logged out successfully', 'success');
+    } catch (error) {
+        console.error('Logout error:', error);
+        showToast('Failed to logout. Please try again.', 'error');
+        cancelLogout();
+    }
+}
 
 // ===== CLASS SELECTION PAGE =====
 function renderClassSelection() {
@@ -102,14 +994,14 @@ function renderClassSelection() {
         
         html += `
             <div class="class-card" onclick="selectClass('${cls.id}')">
-                <div class="class-header" style="border-left-color: ${cls.theme}">
+                <div class="class-header" style="border-left-color: ${cls.theme || '#667eea'}">
                     <span class="class-name">${cls.name}</span>
                     <span class="${badgeClass}">${badge}</span>
                 </div>
                 <div class="class-description">${cls.description}</div>
                 <div class="class-subjects">
                     ${cls.subjects.map(s => {
-                        const subject = AppState.config.subjects.find(sub => sub.id === s);
+                        const subject = AppState.config?.subjects.find(sub => sub.id === s);
                         return `<span class="subject-tag" style="background: ${subject?.color}20; color: ${subject?.color}">${subject?.icon} ${subject?.name}</span>`;
                     }).join('')}
                 </div>
@@ -119,22 +1011,20 @@ function renderClassSelection() {
     
     html += '</div>';
     content.innerHTML = html;
-    updateBottomNav('home');
+    updateBottomNav('classSelection');
 }
 
 // ===== SELECT CLASS (WITH CODE VERIFICATION) =====
-async function selectClass(classId) {
+function selectClass(classId) {
     const classData = AppState.classConfig.classes.find(c => c.id === classId);
     const requiresCode = AppState.classConfig.requireCodeForAll || classData.codeRequired;
     
     if (!requiresCode || !classData.code) {
-        // No code needed - direct access
         AppState.currentClass = classData;
         renderSubjects();
         return;
     }
     
-    // Show code entry modal
     showCodeModal(classData);
 }
 
@@ -188,9 +1078,11 @@ function renderSubjects() {
     let html = '<div class="subjects-grid">';
     
     AppState.currentClass.subjects.forEach(subjectId => {
-        const subject = AppState.config.subjects.find(s => s.id === subjectId);
+        const subject = AppState.config?.subjects.find(s => s.id === subjectId);
+        if (!subject) return;
+        
         html += `
-            <div class="subject-card" onclick="renderLessons('${subject.id}')" style="border-top-color: ${subject.color}">
+            <div class="subject-card ${subject.id}" onclick="renderLessons('${subject.id}')">
                 <div class="subject-header">
                     <span class="subject-icon">${subject.icon}</span>
                     <span class="subject-title">${subject.name}</span>
@@ -202,7 +1094,7 @@ function renderSubjects() {
     
     html += '</div>';
     content.innerHTML = html;
-    updateBottomNav('home');
+    updateBottomNav('subjects');
 }
 
 // ===== LESSONS PAGE (with TEST at the end) =====
@@ -210,124 +1102,844 @@ async function renderLessons(subjectId) {
     AppState.currentView = 'lessons';
     AppState.currentSubject = subjectId;
     
-    const subject = AppState.config.subjects.find(s => s.id === subjectId);
+    const subject = AppState.config?.subjects.find(s => s.id === subjectId);
     const content = document.getElementById('main-content');
     
     updateHeader(subject.name, true, 'renderSubjects()');
     
-    // In a real implementation, you'd fetch lesson list from data directory
-    // For now, we'll use placeholder lessons
-    const lessons = [
-        { id: 'lesson1', name: 'Lesson 1', type: 'regular' },
-        { id: 'lesson2', name: 'Lesson 2', type: 'regular' },
-        { id: 'lesson3', name: 'Lesson 3', type: 'regular' },
-        { id: 'lesson4', name: 'Lesson 4', type: 'regular' },
-        { id: 'test', name: '📝 TEST', type: 'test' }
-    ];
+    content.innerHTML = '<div class="loading-spinner"></div>';
     
-    let html = '<div class="lessons-list">';
-    
-    lessons.forEach(lesson => {
-        const isTest = lesson.type === 'test';
-        html += `
-            <div class="lesson-card ${isTest ? 'test-card' : ''}" 
-                 onclick="${isTest ? 'renderTest()' : `renderQuiz('${lesson.id}')`}">
-                <span class="lesson-name">${lesson.name}</span>
-                <span class="lesson-arrow">→</span>
+    try {
+        // Fetch lesson list from data directory
+        const lessonList = await fetchLessonList(AppState.currentClass.id, subjectId);
+        
+        let html = '<div class="lessons-list">';
+        
+        lessonList.forEach(lesson => {
+            const isTest = lesson.type === 'test';
+            html += `
+                <div class="lesson-card ${isTest ? 'test-card' : ''}" 
+                     onclick="${isTest ? 'renderTest()' : `renderLesson('${lesson.id}')`}">
+                    <span class="lesson-name">${lesson.name}</span>
+                    <span class="lesson-arrow">→</span>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        content.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error loading lessons:', error);
+        content.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #ef4444;">
+                <p>Failed to load lessons</p>
+                <button onclick="renderSubjects()" style="margin-top: 20px; padding: 10px 20px;">Go Back</button>
             </div>
         `;
-    });
+    }
     
-    html += '</div>';
-    content.innerHTML = html;
     updateBottomNav('subjects');
 }
 
-// ===== PLACEHOLDER FUNCTIONS =====
-function renderQuiz(lessonId) {
-    showToast('Quiz coming soon!', 'info');
+// ===== FETCH LESSON LIST =====
+async function fetchLessonList(classId, subjectId) {
+    // In a real implementation, you might have a manifest.json file
+    // For now, we'll return a hardcoded list for demonstration
+    return [
+        { id: 'lesson1', name: 'Lesson 1', type: 'regular' },
+        { id: 'lesson2', name: 'Lesson 2', type: 'regular' },
+        { id: 'lesson3', name: 'Lesson 3', type: 'regular' },
+        { id: 'test', name: '📝 TEST', type: 'test' }
+    ];
 }
 
+// ===== RENDER LESSON =====
+async function renderLesson(lessonId) {
+    AppState.currentLesson = lessonId;
+    
+    const content = document.getElementById('main-content');
+    content.innerHTML = '<div class="loading-spinner"></div>';
+    
+    try {
+        // Load lesson data from JSON file
+        const response = await fetch(`data/${AppState.currentClass.id}/${AppState.currentSubject}/${lessonId}.json`);
+        const lessonData = await response.json();
+        
+        // Start the quiz with this lesson data
+        startQuiz(lessonData);
+        
+    } catch (error) {
+        console.error('Error loading lesson:', error);
+        showToast('Failed to load lesson', 'error');
+        renderLessons(AppState.currentSubject);
+    }
+}
+
+// ===== START QUIZ =====
+let currentQuizData = null;
+let questionTimer = null;
+let timeRemaining = 0;
+let questionStartTime = 0;
+let currentFormatter = null;
+let quizStartTime = 0;
+
+async function startQuiz(lessonData) {
+    quizStartTime = Date.now();
+    
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'none';
+    
+    // Initialize quiz data
+    currentQuizData = {
+        ...lessonData,
+        currentQuestion: 0,
+        score: 0,
+        timePerQuestion: 30, // Default, could be in lesson data
+        maxPointsPerQuestion: 100 // Default
+    };
+    
+    const content = document.getElementById('main-content');
+    
+    // Load formatter for first question
+    const firstQuestion = currentQuizData.questions[0];
+    const formatter = await loadQuestionFormatter(firstQuestion);
+    
+    const formattedQuestion = formatter.formatQuestion(
+        firstQuestion.question, 
+        firstQuestion.format
+    );
+    
+    const formattedOptions = formatter.formatOptions(
+        firstQuestion.options,
+        firstQuestion.format
+    );
+    
+    const html = `
+        <div class="quiz-header-blue">
+            <div class="quiz-header-left">
+                <button class="quiz-back-btn-white" onclick="exitQuiz()">‹</button>
+                <span class="quiz-subchapter-name">${currentQuizData.title}</span>
+            </div>
+            <div class="quiz-level-blue">Lesson</div>
+        </div>
+
+        <div class="quiz-header-white">
+            <div class="quiz-progress-white">1/${currentQuizData.questions.length}</div>
+            <div class="quiz-score-header" id="quizScoreHeader">0</div>
+            <div class="quiz-timer-row">
+                <div class="circular-timer" id="circularTimer">
+                    <svg width="36" height="36" viewBox="0 0 40 40">
+                        <circle class="timer-circle-bg" cx="20" cy="20" r="16"></circle>
+                        <circle class="timer-circle-progress" id="timerCircleProgress" cx="20" cy="20" r="16" stroke-dasharray="100.53" stroke-dashoffset="0"></circle>
+                    </svg>
+                    <div class="timer-circle-text" id="timerText">${currentQuizData.timePerQuestion}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quiz-question" id="quizQuestion">${formattedQuestion}</div>
+
+        <div class="quiz-options-large" id="quizOptions">
+            ${renderOptionsWithFormatting(formattedOptions)}
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    startCircularTimer();
+}
+
+function renderOptionsWithFormatting(options) {
+    return options.map(opt => `
+        <button class="quiz-option-large" onclick="checkAnswer('${opt.value.replace(/'/g, "\\'")}', this)">
+            ${opt.display}
+        </button>
+    `).join('');
+}
+
+function exitQuiz() {
+    if (questionTimer) clearInterval(questionTimer);
+    
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    renderLessons(AppState.currentSubject);
+}
+
+// ===== QUIZ FUNCTIONS =====
+function checkAnswer(selectedOption, buttonElement) {
+    if (!currentQuizData) return;
+    
+    if (questionTimer) clearInterval(questionTimer);
+    
+    const timeTaken = (Date.now() - questionStartTime) / 1000;
+    const question = currentQuizData.questions[currentQuizData.currentQuestion];
+    const isCorrect = (selectedOption === question.correct);
+    
+    if (isCorrect) {
+        const pointsEarned = calculatePoints(timeTaken);
+        buttonElement.classList.add('correct');
+        currentQuizData.score += pointsEarned;
+    } else {
+        buttonElement.classList.add('wrong');
+        highlightCorrectAnswer(question.correct);
+    }
+    
+    updateScoreDisplay();
+    disableAllButtons();
+    
+    setTimeout(moveToNextQuestion, 500);
+}
+
+async function renderCurrentQuestion() {
+    if (!currentQuizData) return;
+    
+    const question = currentQuizData.questions[currentQuizData.currentQuestion];
+    
+    // Load formatter for this question
+    const formatter = await loadQuestionFormatter(question);
+    
+    const questionEl = document.getElementById('quizQuestion');
+    if (questionEl) {
+        questionEl.innerHTML = formatter.formatQuestion(question.question, question.format);
+    }
+    
+    const formattedOptions = formatter.formatOptions(question.options, question.format);
+    
+    const optionsEl = document.getElementById('quizOptions');
+    if (optionsEl) optionsEl.innerHTML = renderOptionsWithFormatting(formattedOptions);
+    
+    const progressEl = document.querySelector('.quiz-progress-white');
+    if (progressEl) {
+        progressEl.textContent = `${currentQuizData.currentQuestion + 1}/${currentQuizData.questions.length}`;
+    }
+    
+    updateScoreDisplay();
+    startCircularTimer();
+}
+
+function updateScoreDisplay() {
+    const scoreHeaderEl = document.getElementById('quizScoreHeader');
+    if (scoreHeaderEl && currentQuizData) scoreHeaderEl.textContent = currentQuizData.score;
+}
+
+function disableAllButtons() {
+    document.querySelectorAll('.quiz-option-large').forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
+    });
+}
+
+function enableAllButtons() {
+    document.querySelectorAll('.quiz-option-large').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.classList.remove('correct', 'wrong');
+    });
+}
+
+function highlightCorrectAnswer(correctAnswer) {
+    document.querySelectorAll('.quiz-option-large').forEach(btn => {
+        if (btn.textContent.trim() === correctAnswer) {
+            btn.classList.add('correct');
+        }
+    });
+}
+
+function calculatePoints(timeTaken) {
+    const maxPoints = currentQuizData.maxPointsPerQuestion || 100;
+    const timeLimit = currentQuizData.timePerQuestion || 30;
+    
+    let points = maxPoints * (1 - (timeTaken / timeLimit) * 0.5);
+    points = Math.round(points);
+    const minPoints = Math.round(maxPoints * 0.1);
+    
+    return Math.max(minPoints, points);
+}
+
+function moveToNextQuestion() {
+    if (!currentQuizData) return;
+    
+    if (questionTimer) clearInterval(questionTimer);
+    
+    if (currentQuizData.currentQuestion + 1 < currentQuizData.questions.length) {
+        currentQuizData.currentQuestion++;
+        renderCurrentQuestion();
+    } else {
+        showQuizComplete();
+    }
+}
+
+function showQuizComplete() {
+    if (!currentQuizData) return;
+    
+    if (questionTimer) clearInterval(questionTimer);
+    
+    saveQuizProgress();
+    
+    const content = document.getElementById('main-content');
+    content.innerHTML = `
+        <div class="quiz-complete">
+            <div class="completion-icon">🏆</div>
+            <div class="score-display">${currentQuizData.score}</div>
+            <div class="questions-correct">${currentQuizData.currentQuestion + 1}/${currentQuizData.questions.length}</div>
+            <div class="button-row">
+                <button class="try-again-btn" onclick="restartQuiz()">Try Again</button>
+                <button class="next-level-btn" onclick="exitQuiz()">Done</button>
+            </div>
+        </div>
+    `;
+}
+
+function restartQuiz() {
+    if (!currentQuizData) return;
+    
+    currentQuizData.currentQuestion = 0;
+    currentQuizData.score = 0;
+    
+    renderCurrentQuestion();
+}
+
+// ===== RENDER TEST (placeholder) =====
 function renderTest() {
     showToast('Test coming soon!', 'info');
 }
 
-// ===== HELPER FUNCTIONS (copied from your original app.js) =====
-function updateHeader(title, showBackButton = false, backFunction = null) {
-    const header = document.getElementById('app-header');
-    if (!header) return;
+// ===== CIRCULAR TIMER =====
+function startCircularTimer() {
+    if (!currentQuizData) return;
     
-    if (showBackButton) {
-        header.innerHTML = `
-            <div class="centered-header">
-                <button class="header-back-btn" onclick="${backFunction}">‹</button>
-                <span class="header-title">${title}</span>
-                <div class="header-placeholder"></div>
-            </div>
-        `;
-    } else {
-        header.innerHTML = `<h1>${title}</h1>`;
+    if (questionTimer) clearInterval(questionTimer);
+    
+    timeRemaining = currentQuizData.timePerQuestion || 30;
+    questionStartTime = Date.now();
+    
+    const timerText = document.getElementById('timerText');
+    const timerCircle = document.getElementById('timerCircleProgress');
+    const totalTime = currentQuizData.timePerQuestion || 30;
+    
+    if (!timerText || !timerCircle) return;
+    
+    const circumference = 2 * Math.PI * 16;
+    timerCircle.style.strokeDasharray = circumference;
+    timerCircle.style.strokeDashoffset = '0';
+    
+    questionTimer = setInterval(() => {
+        if (!currentQuizData) {
+            clearInterval(questionTimer);
+            return;
+        }
+        
+        timeRemaining -= 0.1;
+        
+        if (timeRemaining <= 0) {
+            clearInterval(questionTimer);
+            timerText.textContent = '0';
+            timerCircle.style.stroke = '#ef4444';
+            handleTimeOut();
+            return;
+        }
+        
+        timerText.textContent = Math.ceil(timeRemaining);
+        
+        const progress = timeRemaining / totalTime;
+        const dashOffset = circumference * (1 - progress);
+        timerCircle.style.strokeDashoffset = dashOffset;
+        
+        if (progress < 0.25) {
+            timerCircle.style.stroke = '#ef4444';
+        } else if (progress < 0.5) {
+            timerCircle.style.stroke = '#f59e0b';
+        } else {
+            timerCircle.style.stroke = '#3b82f6';
+        }
+        
+    }, 100);
+}
+
+function handleTimeOut() {
+    disableAllButtons();
+    setTimeout(moveToNextQuestion, 500);
+}
+
+// ===== SAVE QUIZ PROGRESS =====
+async function saveQuizProgress() {
+    if (!currentQuizData || !auth.currentUser) return;
+    
+    const user = auth.currentUser;
+    const totalQuestions = currentQuizData.questions.length;
+    const maxPossible = totalQuestions * (currentQuizData.maxPointsPerQuestion || 100);
+    const accuracy = Math.round((currentQuizData.score / maxPossible) * 100);
+    const questionsCorrect = Math.round(currentQuizData.score / (maxPossible / totalQuestions));
+    const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
+    
+    try {
+        const attemptData = {
+            userId: user.uid,
+            username: user.displayName || 'user',
+            displayName: user.displayName || 'User',
+            classId: AppState.currentClass.id,
+            className: AppState.currentClass.name,
+            subject: AppState.currentSubject,
+            lessonId: AppState.currentLesson,
+            lessonTitle: currentQuizData.title,
+            score: currentQuizData.score,
+            maxPossible: maxPossible,
+            accuracy: accuracy,
+            questionsCorrect: questionsCorrect,
+            totalQuestions: totalQuestions,
+            timeSpent: totalTimeSpent,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+        await db.collection('attempts').add(attemptData);
+        
+        const userRef = db.collection('users').doc(user.uid);
+        const userDoc = await userRef.get();
+        
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            const overall = userData.overall || { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 };
+            
+            overall.totalPoints = (overall.totalPoints || 0) + currentQuizData.score;
+            overall.quizzesTaken = (overall.quizzesTaken || 0) + 1;
+            overall.totalTimeSpent = (overall.totalTimeSpent || 0) + totalTimeSpent;
+            overall.lastActive = firebase.firestore.FieldValue.serverTimestamp();
+            
+            await userRef.update({ overall });
+        }
+        
+        console.log('✅ Progress saved');
+        
+    } catch (error) {
+        console.error('Error saving progress:', error);
     }
 }
 
-function updateBottomNav(activeView) {
-    const nav = document.getElementById('bottom-nav');
-    if (!nav) return;
+// ===== PROGRESS PAGE =====
+function renderProgress() {
+    AppState.currentView = 'progress';
+    const content = document.getElementById('main-content');
     
-    if (['login', 'register'].includes(activeView)) {
-        nav.style.display = 'none';
+    updateHeader('📊 Progress');
+    
+    if (!auth.currentUser) {
+        renderLogin();
         return;
     }
     
-    nav.style.display = 'flex';
-    nav.innerHTML = `
-        <button class="nav-item ${activeView === 'home' ? 'active' : ''}" onclick="renderClassSelection()">
-            <span class="nav-icon">🏠</span>
-            <span>Classes</span>
-        </button>
-        <button class="nav-item ${activeView === 'progress' ? 'active' : ''}" onclick="renderProgress()">
-            <span class="nav-icon">📊</span>
-            <span>Progress</span>
-        </button>
-        <button class="nav-item ${activeView === 'profile' ? 'active' : ''}" onclick="renderProfile()">
-            <span class="nav-icon">👤</span>
-            <span>Profile</span>
-        </button>
+    content.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #64748b;">
+            <p>Progress tracking coming soon!</p>
+        </div>
     `;
+    
+    updateBottomNav('progress');
 }
 
-function showToast(message, type = 'info') {
-    // Simplified toast - you can copy the full function from your original app.js
-    alert(message);
-}
-
-async function loadUserProgress(uid) {
-    // Simplified - will expand later
-    console.log('Loading progress for:', uid);
-}
-
-function renderLogin() {
-    // Placeholder - copy from your original app.js
-    document.getElementById('main-content').innerHTML = '<div>Login Page (copy from original)</div>';
-}
-
-function renderProgress() {
-    showToast('Progress coming soon!', 'info');
-}
-
+// ===== PROFILE PAGE =====
 function renderProfile() {
-    showToast('Profile coming soon!', 'info');
+    AppState.currentView = 'profile';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Profile');
+    
+    const user = auth.currentUser;
+    if (!user) {
+        renderLogin();
+        return;
+    }
+    
+    db.collection('users').doc(user.uid).get().then(doc => {
+        if (!doc.exists) {
+            content.innerHTML = '<div class="error-message">User data not found</div>';
+            return;
+        }
+        
+        const userData = doc.data();
+        const displayName = userData.displayName || 'User';
+        const username = userData.username || 'username';
+        const dob = userData.dateOfBirth || { day: '?', month: '?', year: '?' };
+        const createdAt = userData.createdAt ? new Date(userData.createdAt.toDate()) : new Date();
+        
+        const joinMonth = createdAt.toLocaleString('default', { month: 'long' });
+        const joinYear = createdAt.getFullYear();
+        const dobString = `${dob.day} ${new Date(2000, dob.month-1).toLocaleString('default', { month: 'long' })} ${dob.year}`;
+        
+        const html = `
+            <div class="profile-container">
+                <div class="profile-avatar">
+                    <div class="avatar-circle">
+                        <span class="avatar-text">${displayName.charAt(0)}</span>
+                    </div>
+                </div>
+                
+                <div class="profile-name">
+                    <h2>${displayName}</h2>
+                    <p class="profile-username">@${username}</p>
+                </div>
+                
+                <div class="profile-card">
+                    <div class="profile-card-icon">🎂</div>
+                    <div class="profile-card-content">
+                        <div class="profile-card-label">Date of Birth</div>
+                        <div class="profile-card-value">${dobString}</div>
+                    </div>
+                </div>
+                
+                <div class="profile-card">
+                    <div class="profile-card-icon">📅</div>
+                    <div class="profile-card-content">
+                        <div class="profile-card-label">Member Since</div>
+                        <div class="profile-card-value">${joinMonth} ${joinYear}</div>
+                    </div>
+                </div>
+                
+                <button class="logout-btn" onclick="handleLogout()">
+                    <span class="logout-icon">🚪</span>
+                    Logout
+                </button>
+            </div>
+        `;
+        
+        content.innerHTML = html;
+        updateBottomNav('profile');
+    }).catch(error => {
+        console.error('Error fetching user data:', error);
+        content.innerHTML = '<div class="error-message">Failed to load profile</div>';
+    });
+}
+
+// ===== SETTINGS PAGE =====
+function renderSettings() {
+    AppState.currentView = 'settings';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('⚙️ Settings');
+    
+    const isDarkMode = localStorage.getItem('darkMode') === 'true';
+    
+    const html = `
+        <div class="settings-container">
+            <div class="settings-card">
+                <div class="settings-header">Appearance</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="settings-icon">🌙</span>
+                        <span class="settings-label">Dark Mode</span>
+                    </div>
+                    <div class="settings-toggle">
+                        <button class="toggle-btn ${!isDarkMode ? 'active' : ''}" onclick="setDarkMode(false)">Off</button>
+                        <button class="toggle-btn ${isDarkMode ? 'active' : ''}" onclick="setDarkMode(true)">On</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-card">
+                <div class="settings-header">Account</div>
+                <div class="settings-item" onclick="renderChangePassword()">
+                    <div class="settings-item-left">
+                        <span class="settings-icon">🔒</span>
+                        <span class="settings-label">Change Password</span>
+                    </div>
+                    <span class="settings-arrow">→</span>
+                </div>
+                <div class="settings-item" onclick="confirmDeleteAccount()">
+                    <div class="settings-item-left">
+                        <span class="settings-icon">🗑️</span>
+                        <span class="settings-label">Delete Account</span>
+                    </div>
+                    <span class="settings-arrow">→</span>
+                </div>
+            </div>
+            
+            <div class="settings-card">
+                <div class="settings-header">About</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <span class="settings-icon">ℹ️</span>
+                        <span class="settings-label">Version</span>
+                    </div>
+                    <span class="settings-value">1.0.0</span>
+                </div>
+                <div class="settings-item" onclick="window.open('https://your-terms-url.com', '_blank')">
+                    <div class="settings-item-left">
+                        <span class="settings-icon">📋</span>
+                        <span class="settings-label">Terms of Service</span>
+                    </div>
+                    <span class="settings-arrow">→</span>
+                </div>
+                <div class="settings-item" onclick="window.open('https://vikashisexploringai.github.io/mathRiyaz/privacy-policy.html', '_blank')">
+                    <div class="settings-item-left">
+                        <span class="settings-icon">🔒</span>
+                        <span class="settings-label">Privacy Policy</span>
+                    </div>
+                    <span class="settings-arrow">→</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('settings');
+}
+
+// ===== DARK MODE FUNCTIONS =====
+function setDarkMode(enabled) {
+    localStorage.setItem('darkMode', enabled);
+    
+    if (enabled) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+    
+    renderSettings();
 }
 
 function initDarkMode() {
-    // Copy from original
+    const isDarkMode = localStorage.getItem('darkMode') === 'true';
+    if (isDarkMode) {
+        document.body.classList.add('dark-mode');
+    }
 }
 
-// Make functions globally available
+// ===== CHANGE PASSWORD PAGE =====
+function renderChangePassword() {
+    if (!auth.currentUser) {
+        showToast('Please login first', 'error');
+        renderLogin();
+        return;
+    }
+    
+    AppState.currentView = 'changePassword';
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Change Password', true, 'renderSettings()');
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Change Password</h2>
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
+                    Enter your current password and choose a new one
+                </p>
+                
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" placeholder="Enter current password" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="At least 6 characters" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" placeholder="Re-enter new password" class="auth-input">
+                </div>
+                
+                <button class="auth-btn" onclick="handleChangePassword()">Update Password</button>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="renderSettings()">Back to Settings</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('settings');
+}
+
+async function handleChangePassword() {
+    const currentPassword = document.getElementById('currentPassword')?.value;
+    const newPassword = document.getElementById('newPassword')?.value;
+    const confirmPassword = document.getElementById('confirmNewPassword')?.value;
+    
+    clearInlineMessages();
+    let hasError = false;
+    
+    if (!currentPassword) {
+        showInlineMessage('currentPassword', 'Please enter current password');
+        hasError = true;
+    }
+    
+    if (!newPassword) {
+        showInlineMessage('newPassword', 'Please enter new password');
+        hasError = true;
+    } else if (newPassword.length < 6) {
+        showInlineMessage('newPassword', 'Password must be at least 6 characters');
+        hasError = true;
+    }
+    
+    if (!confirmPassword) {
+        showInlineMessage('confirmNewPassword', 'Please confirm new password');
+        hasError = true;
+    } else if (newPassword !== confirmPassword) {
+        showInlineMessage('confirmNewPassword', 'Passwords do not match');
+        hasError = true;
+    }
+    
+    if (hasError) return;
+    
+    try {
+        const changeBtn = document.querySelector('.auth-btn');
+        changeBtn.textContent = 'Verifying...';
+        changeBtn.disabled = true;
+        
+        const user = auth.currentUser;
+        const email = user.email;
+        
+        const credential = firebase.auth.EmailAuthProvider.credential(email, currentPassword);
+        await user.reauthenticateWithCredential(credential);
+        
+        changeBtn.textContent = 'Updating...';
+        await user.updatePassword(newPassword);
+        
+        showToast('Password updated successfully!', 'success');
+        renderSettings();
+        
+    } catch (error) {
+        console.error('Change password error:', error);
+        
+        const changeBtn = document.querySelector('.auth-btn');
+        changeBtn.textContent = 'Update Password';
+        changeBtn.disabled = false;
+        
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-login-credentials') {
+            showInlineMessage('currentPassword', 'Current password is incorrect');
+        } else if (error.code === 'auth/weak-password') {
+            showInlineMessage('newPassword', 'Password is too weak');
+        } else if (error.code === 'auth/requires-recent-login') {
+            showToast('Session expired. Please logout and login again.', 'error');
+            setTimeout(() => handleLogout(), 2000);
+        } else {
+            showToast('Failed to change password: ' + error.message, 'error');
+        }
+    }
+}
+
+function confirmDeleteAccount() {
+    if (!auth.currentUser) {
+        showToast('Please login first', 'error');
+        renderLogin();
+        return;
+    }
+    
+    const content = document.getElementById('main-content');
+    const previousContent = content.innerHTML;
+    
+    const deleteModalHTML = `
+        <div class="delete-modal-overlay">
+            <div class="delete-modal">
+                <div class="delete-modal-icon">⚠️</div>
+                <h3 class="delete-modal-title">Delete Account?</h3>
+                <p class="delete-modal-message">
+                    This action is <strong>PERMANENT</strong> and cannot be undone.<br>
+                    All your data will be lost:
+                </p>
+                <ul class="delete-modal-list">
+                    <li>• Profile information</li>
+                    <li>• All quiz attempts</li>
+                    <li>• Progress and statistics</li>
+                </ul>
+                <div class="delete-modal-buttons">
+                    <button class="delete-modal-cancel" onclick="cancelDelete()">Cancel</button>
+                    <button class="delete-modal-confirm" onclick="deleteAccount()">Delete Forever</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    window.previousContent = previousContent;
+    content.innerHTML = deleteModalHTML;
+}
+
+window.cancelDelete = function() {
+    const content = document.getElementById('main-content');
+    if (window.previousContent) {
+        content.innerHTML = window.previousContent;
+    } else {
+        renderSettings();
+    }
+};
+
+async function deleteAccount() {
+    const user = auth.currentUser;
+    if (!user) {
+        showToast('No user logged in', 'error');
+        renderLogin();
+        return;
+    }
+    
+    const userId = user.uid;
+    
+    try {
+        showToast('Deleting account...', 'info');
+        
+        const attemptsSnapshot = await db.collection('attempts')
+            .where('userId', '==', userId)
+            .get();
+        
+        if (!attemptsSnapshot.empty) {
+            const batch = db.batch();
+            attemptsSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+        }
+        
+        await db.collection('users').doc(userId).delete();
+        await user.delete();
+        
+        localStorage.removeItem('darkMode');
+        
+        showToast('Account deleted successfully', 'success');
+        renderLogin();
+        
+    } catch (error) {
+        console.error('Delete account error:', error);
+        
+        if (error.code === 'auth/requires-recent-login') {
+            showToast('Please log out and log back in to delete your account', 'error');
+        } else {
+            showToast('Failed to delete account: ' + error.message, 'error');
+        }
+        
+        renderSettings();
+    }
+}
+
+// ===== MAKE FUNCTIONS GLOBALLY AVAILABLE =====
+window.renderLogin = renderLogin;
+window.handleLogin = handleLogin;
+window.renderRegister = renderRegister;
+window.handleRegister = handleRegister;
+window.renderForgotUsername = renderForgotUsername;
+window.handleFindUsername = handleFindUsername;
+window.renderForgotPassword = renderForgotPassword;
+window.handleVerifyIdentity = handleVerifyIdentity;
+window.handleCloudPasswordReset = handleCloudPasswordReset;
+window.handleLogout = handleLogout;
+window.renderClassSelection = renderClassSelection;
 window.selectClass = selectClass;
 window.verifyCode = verifyCode;
 window.closeModal = closeModal;
+window.renderSubjects = renderSubjects;
 window.renderLessons = renderLessons;
-window.renderQuiz = renderQuiz;
+window.renderLesson = renderLesson;
 window.renderTest = renderTest;
-window.renderClassSelection = renderClassSelection;
+window.checkAnswer = checkAnswer;
+window.exitQuiz = exitQuiz;
+window.restartQuiz = restartQuiz;
+window.renderProgress = renderProgress;
+window.renderProfile = renderProfile;
+window.renderSettings = renderSettings;
+window.setDarkMode = setDarkMode;
+window.renderChangePassword = renderChangePassword;
+window.handleChangePassword = handleChangePassword;
+window.confirmDeleteAccount = confirmDeleteAccount;
