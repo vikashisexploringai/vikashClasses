@@ -1,9 +1,8 @@
 // js/firebase/firebaseInit.js
-// Firebase initialization and database setup
+// Firebase initialization for user data (default database)
 
 import { showToast } from '../ui/toast.js';
 
-// Firebase configuration
 const firebaseConfig = {
     apiKey: "AIzaSyACO39eJRrdbgowWcqgdp0DFkDPUhbQQfQ",
     authDomain: "database-367af.firebaseapp.com",
@@ -36,15 +35,10 @@ function initFirebase() {
             }
             
             auth = firebase.auth();
-            
-            // Create Firestore instance and set database ID
-            db = firebase.firestore();
-            
-            // Set database ID - this MUST be the first Firestore call
-            db.settings({ databaseId: 'vikashclasses-db' });
+            db = firebase.firestore(); // Default database
             
             initialized = true;
-            console.log('✅ Firebase initialized with vikashclasses-db');
+            console.log('✅ Firebase initialized (default database for user data)');
             resolve({ auth, db });
             
         } catch (error) {
