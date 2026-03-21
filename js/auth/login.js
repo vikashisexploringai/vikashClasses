@@ -1,7 +1,7 @@
 // js/auth/login.js
 // Login view and handler
 
-import { getAuth, initFirebase } from '../firebase/firebaseInit.js';
+import { getAuth } from '../firebase/firebaseInit.js';
 import { updateHeader } from '../ui/header.js';
 import { updateBottomNav } from '../ui/bottomNav.js';
 import { showToast } from '../ui/toast.js';
@@ -23,8 +23,8 @@ function renderLogin() {
                 <h2>Login to vikashClasses</h2>
                 
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter your username" class="auth-input">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="student@example.com" class="auth-input">
                 </div>
                 
                 <div class="form-group">
@@ -55,15 +55,21 @@ function renderLogin() {
 }
 
 async function handleLogin() {
-    const username = document.getElementById('username')?.value;
+    const email = document.getElementById('email')?.value;
     const password = document.getElementById('password')?.value;
     const rememberMe = document.getElementById('rememberMe')?.checked;
     
     clearInlineMessages();
     
-    if (!username || !password) {
-        if (!username) showInlineMessage('username', 'Please enter username');
-        if (!password) showInlineMessage('password', 'Please enter password');
+    if (!email || !password) {
+        if (!email) showInlineMessage('email', 'Please enter your email');
+        if (!password) showInlineMessage('password', 'Please enter your password');
+        return;
+    }
+    
+    // Email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showInlineMessage('email', 'Please enter a valid email address');
         return;
     }
     
@@ -72,12 +78,7 @@ async function handleLogin() {
         loginBtn.textContent = 'Logging in...';
         loginBtn.disabled = true;
         
-        const email = `${username}@mathriyaz.local`;
-        
-        // Ensure Firebase is initialized
-        await initFirebase();
-        
-        const auth = getAuth();
+        const { auth } = getAuth();
         
         if (!auth) {
             throw new Error('Auth not initialized');
@@ -94,11 +95,13 @@ async function handleLogin() {
         console.error('Login error:', error);
         
         if (error.code === 'auth/user-not-found') {
-            showInlineMessage('username', 'Username not found');
+            showInlineMessage('email', 'No account found with this email');
         } else if (error.code === 'auth/wrong-password') {
             showInlineMessage('password', 'Incorrect password');
         } else if (error.code === 'auth/invalid-email') {
-            showInlineMessage('username', 'Invalid username format');
+            showInlineMessage('email', 'Invalid email format');
+        } else if (error.code === 'auth/too-many-requests') {
+            showInlineMessage('email', 'Too many failed attempts. Please try again later.');
         } else {
             showToast(error.message, 'error');
         }
@@ -109,8 +112,102 @@ async function handleLogin() {
     }
 }
 
+// Function for forgot username (now uses email instead)
+function renderForgotUsername() {
+    const appHeader = document.getElementById('app-header');
+    if (appHeader) appHeader.style.display = 'flex';
+    
+    updateState({ currentView: 'forgotUsername' });
+    const content = document.getElementById('main-content');
+    
+    updateHeader('Find Username');
+    
+    const html = `
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2>Find Your Username</h2>
+                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
+                    Enter your email address to retrieve your username.
+                </p>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="forgotEmail" placeholder="student@example.com" class="auth-input">
+                </div>
+                
+                <button class="auth-btn" onclick="window.handleFindUsername()">Find Username</button>
+                
+                <div id="usernameResult" style="display: none; margin: 20px 0; padding: 16px; background: #f0f9ff; border-radius: 12px; text-align: center;">
+                    <p style="color: #0369a1; margin-bottom: 4px;">Your username is:</p>
+                    <p id="foundUsername" style="font-size: 20px; font-weight: 600; color: #0f172a;"></p>
+                </div>
+                
+                <div class="auth-links">
+                    <button class="link-btn" onclick="window.renderLogin()">Back to Login</button>
+                    <button class="link-btn" onclick="window.renderForgotPassword()">Forgot Password?</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    updateBottomNav('forgotUsername');
+}
+
+async function handleFindUsername() {
+    const email = document.getElementById('forgotEmail')?.value;
+    
+    clearInlineMessages();
+    
+    if (!email) {
+        showInlineMessage('forgotEmail', 'Please enter your email');
+        return;
+    }
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showInlineMessage('forgotEmail', 'Please enter a valid email address');
+        return;
+    }
+    
+    try {
+        const findBtn = document.querySelector('.auth-btn');
+        findBtn.textContent = 'Searching...';
+        findBtn.disabled = true;
+        
+        const { db } = getDb();
+        
+        const snapshot = await db.collection('users')
+            .where('email', '==', email)
+            .get();
+        
+        findBtn.textContent = 'Find Username';
+        findBtn.disabled = false;
+        
+        if (snapshot.empty) {
+            showToast('No account found with this email', 'error');
+            return;
+        }
+        
+        const userData = snapshot.docs[0].data();
+        
+        document.getElementById('foundUsername').textContent = userData.username;
+        document.getElementById('usernameResult').style.display = 'block';
+        showToast('Username found!', 'success');
+        
+    } catch (error) {
+        console.error('Error finding username:', error);
+        showToast('An error occurred. Please try again.', 'error');
+        
+        const findBtn = document.querySelector('.auth-btn');
+        findBtn.textContent = 'Find Username';
+        findBtn.disabled = false;
+    }
+}
+
 // Make functions globally available
 window.handleLogin = handleLogin;
 window.renderLogin = renderLogin;
+window.renderForgotUsername = renderForgotUsername;
+window.handleFindUsername = handleFindUsername;
 
-export { renderLogin, handleLogin };
+export { renderLogin, handleLogin, renderForgotUsername, handleFindUsername };

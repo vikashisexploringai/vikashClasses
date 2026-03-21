@@ -1,15 +1,16 @@
 // js/firebase/firebaseInit.js
-// Firebase initialization for user data (default database)
+// Firebase initialization for vikashclasses app
 
 import { showToast } from '../ui/toast.js';
 
+// NEW Firebase configuration for vikashclasses project
 const firebaseConfig = {
-    apiKey: "AIzaSyACO39eJRrdbgowWcqgdp0DFkDPUhbQQfQ",
-    authDomain: "database-367af.firebaseapp.com",
-    projectId: "database-367af",
-    storageBucket: "database-367af.firebasestorage.app",
-    messagingSenderId: "246204653332",
-    appId: "1:246204653332:web:8daf25ea24112de940ec01"
+  apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
+  authDomain: "vikash-classes-c98f8.firebaseapp.com",
+  projectId: "vikash-classes-c98f8",
+  storageBucket: "vikash-classes-c98f8.firebasestorage.app",
+  messagingSenderId: "456891384843",
+  appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
 };
 
 let auth = null;
@@ -35,10 +36,10 @@ function initFirebase() {
             }
             
             auth = firebase.auth();
-            db = firebase.firestore(); // Default database
+            db = firebase.firestore(); // Uses default database
             
             initialized = true;
-            console.log('✅ Firebase initialized (default database for user data)');
+            console.log('✅ Firebase initialized with vikashclasses project');
             resolve({ auth, db });
             
         } catch (error) {

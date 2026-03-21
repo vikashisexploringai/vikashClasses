@@ -11,8 +11,7 @@ import {
     renderForgotUsername, 
     handleFindUsername, 
     renderForgotPassword, 
-    handleVerifyIdentity, 
-    handleCloudPasswordReset 
+    handleSendResetEmail 
 } from './auth/password.js';
 import { renderClassSelection, selectClass } from './views/classSelection.js';
 import { renderSubjects, selectSubject } from './views/subjects.js';
@@ -30,8 +29,7 @@ window.handleLogout = handleLogout;
 window.renderForgotUsername = renderForgotUsername;
 window.handleFindUsername = handleFindUsername;
 window.renderForgotPassword = renderForgotPassword;
-window.handleVerifyIdentity = handleVerifyIdentity;
-window.handleCloudPasswordReset = handleCloudPasswordReset;
+window.handleSendResetEmail = handleSendResetEmail;
 window.renderClassSelection = renderClassSelection;
 window.selectClass = selectClass;
 window.renderSubjects = renderSubjects;

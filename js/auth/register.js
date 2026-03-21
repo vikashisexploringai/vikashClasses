@@ -43,8 +43,14 @@ function renderRegister() {
                 <h2>Join vikashClasses</h2>
                 
                 <div class="form-group">
-                    <label for="fullName">Child's Full Name</label>
+                    <label for="fullName">Full Name</label>
                     <input type="text" id="fullName" placeholder="e.g., John Doe" class="auth-input">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="student@example.com" class="auth-input">
+                    <small style="color: #64748b; font-size: 12px; margin-top: 4px; display: block;">We'll use this for password reset</small>
                 </div>
                 
                 <div class="form-group">
@@ -88,6 +94,21 @@ function renderRegister() {
                     </label>
                 </div>
                 
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="hasTeacherCode">
+                        <span>I have a teacher code</span>
+                    </label>
+                </div>
+                
+                <div id="teacherCodeField" style="display: none;">
+                    <div class="form-group">
+                        <label for="teacherCode">Teacher Code</label>
+                        <input type="text" id="teacherCode" placeholder="e.g., TEACH-ABC123" class="auth-input">
+                        <small>Enter the code provided by your teacher</small>
+                    </div>
+                </div>
+                
                 <button class="auth-btn" onclick="window.handleRegister()">Create Account</button>
                 
                 <div class="auth-links">
@@ -99,10 +120,19 @@ function renderRegister() {
     
     content.innerHTML = html;
     updateBottomNav('register');
+    
+    // Show/hide teacher code field
+    document.getElementById('hasTeacherCode')?.addEventListener('change', (e) => {
+        const teacherCodeField = document.getElementById('teacherCodeField');
+        if (teacherCodeField) {
+            teacherCodeField.style.display = e.target.checked ? 'block' : 'none';
+        }
+    });
 }
 
 async function handleRegister() {
     const fullName = document.getElementById('fullName')?.value;
+    const email = document.getElementById('email')?.value;
     const username = document.getElementById('username')?.value;
     const day = document.getElementById('dobDay')?.value;
     const month = document.getElementById('dobMonth')?.value;
@@ -110,11 +140,18 @@ async function handleRegister() {
     const password = document.getElementById('password')?.value;
     const confirmPassword = document.getElementById('confirmPassword')?.value;
     const rememberMe = document.getElementById('rememberMe')?.checked;
+    const hasTeacherCode = document.getElementById('hasTeacherCode')?.checked;
+    const teacherCode = hasTeacherCode ? document.getElementById('teacherCode')?.value : null;
     
     clearInlineMessages();
     let hasError = false;
     
     if (!fullName) { showInlineMessage('fullName', 'Please enter full name'); hasError = true; }
+    if (!email) { showInlineMessage('email', 'Please enter email address'); hasError = true; }
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showInlineMessage('email', 'Please enter a valid email address');
+        hasError = true;
+    }
     if (!username) { showInlineMessage('username', 'Please choose a username'); hasError = true; }
     else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
         showInlineMessage('username', 'Username can only contain letters, numbers, and underscores');
@@ -135,9 +172,10 @@ async function handleRegister() {
         registerBtn.textContent = 'Checking...';
         registerBtn.disabled = true;
         
-        const { db } = getDb();
-        const { auth } = getAuth();
+        const db = getDb();
+        const auth = getAuth();
         
+        // Check if username already exists
         const snapshot = await db.collection('users').where('username', '==', username).get();
         
         if (!snapshot.empty) {
@@ -149,7 +187,7 @@ async function handleRegister() {
         
         registerBtn.textContent = 'Creating Account...';
         
-        const email = `${username}@mathriyaz.local`;
+        // Create user with REAL email
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
@@ -159,7 +197,8 @@ async function handleRegister() {
             rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
         );
         
-        await db.collection('users').doc(user.uid).set({
+        // Create user document in Firestore
+        const userData = {
             uid: user.uid,
             username: username,
             displayName: fullName,
@@ -168,7 +207,16 @@ async function handleRegister() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             enrolledClasses: [],
             overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 }
-        });
+        };
+        
+        // Add teacher code if provided
+        if (teacherCode) {
+            // Validate teacher code (you'll implement this)
+            userData.teacherCode = teacherCode;
+            userData.teacherCodeProvidedAt = firebase.firestore.FieldValue.serverTimestamp();
+        }
+        
+        await db.collection('users').doc(user.uid).set(userData);
         
         showToast('Account created successfully!', 'success');
         
@@ -176,7 +224,7 @@ async function handleRegister() {
         console.error('Registration error:', error);
         
         if (error.code === 'auth/email-already-in-use') {
-            showInlineMessage('username', 'Username already taken. Please choose another.');
+            showInlineMessage('email', 'Email already registered. Please use a different email or login.');
         } else {
             showToast('Registration failed: ' + error.message, 'error');
         }
@@ -187,7 +235,7 @@ async function handleRegister() {
     }
 }
 
-// At the bottom of register.js, add:
+// Make functions globally available
 window.renderRegister = renderRegister;
 window.handleRegister = handleRegister;
 
