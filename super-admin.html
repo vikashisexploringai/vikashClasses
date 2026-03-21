@@ -71,10 +71,25 @@
             firebase.initializeApp(firebaseConfig);
         }
         
-        // CRITICAL: Set database to vikashclasses-db BEFORE anything else
-        const db = firebase.firestore();
-        db.settings({ databaseId: 'vikashclasses-db' });
-        console.log('✅ Connected to vikashclasses-db');
+        // IMPORTANT: Create a custom Firestore instance with the correct database
+        // This bypasses the default instance and ensures we always use vikashclasses-db
+        let db = null;
+        
+        function getDb() {
+            if (db) return db;
+            // Create a new instance with the correct database
+            db = firebase.firestore();
+            try {
+                db.settings({ databaseId: 'vikashclasses-db', merge: true });
+            } catch (e) {
+                console.warn('Could not set database ID:', e.message);
+                // If settings can't be changed, create a fresh instance
+                db = firebase.firestore();
+                db._settings = { ...db._settings, databaseId: 'vikashclasses-db' };
+            }
+            console.log('✅ Database set to:', db._databaseId?.database || db._settings?.databaseId);
+            return db;
+        }
         
         const auth = firebase.auth();
         const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
@@ -84,13 +99,6 @@
         // Auth state listener
         auth.onAuthStateChanged(async (user) => {
             if (user && user.email === SUPER_ADMIN_EMAIL) {
-                // Check if super admin claim exists
-                const token = await user.getIdTokenResult();
-                if (!token.claims.superAdmin) {
-                    console.log('Setting superAdmin claim...');
-                    // You'll need to set this claim via Firebase CLI or Cloud Function
-                    // For now, we'll still allow access but show warning
-                }
                 currentUser = user;
                 document.getElementById('userInfo').innerHTML = `
                     <span>👑 ${user.displayName || user.email}</span>
@@ -138,7 +146,8 @@
             listDiv.innerHTML = '<div class="loading">Loading teachers...</div>';
             
             try {
-                const snapshot = await db.collection('teachers').get();
+                const firestore = getDb();
+                const snapshot = await firestore.collection('teachers').get();
                 if (snapshot.empty) {
                     listDiv.innerHTML = '<p>No teachers added yet.</p>';
                     return;
@@ -185,8 +194,10 @@
             addBtn.disabled = true;
             
             try {
+                const firestore = getDb();
+                
                 // Check if teacher exists
-                const existing = await db.collection('teachers').where('email', '==', email).get();
+                const existing = await firestore.collection('teachers').where('email', '==', email).get();
                 if (!existing.empty) {
                     alert('Teacher already exists');
                     addBtn.textContent = 'Generate Code & Add';
@@ -195,7 +206,7 @@
                 }
                 
                 // Add teacher
-                await db.collection('teachers').add({
+                await firestore.collection('teachers').add({
                     email: email,
                     displayName: name || email.split('@')[0],
                     teacherCode: teacherCode,
@@ -205,7 +216,7 @@
                 });
                 
                 // Also store in superAdmin settings
-                const settingsRef = db.collection('superAdmin').doc('settings');
+                const settingsRef = firestore.collection('superAdmin').doc('settings');
                 const settingsDoc = await settingsRef.get();
                 const teacherCodes = settingsDoc.exists ? settingsDoc.data().teacherCodes || {} : {};
                 teacherCodes[teacherCode] = {
@@ -235,7 +246,8 @@
         window.generateNewCode = async function(teacherId) {
             const newCode = generateTeacherCode();
             try {
-                await db.collection('teachers').doc(teacherId).update({ teacherCode: newCode });
+                const firestore = getDb();
+                await firestore.collection('teachers').doc(teacherId).update({ teacherCode: newCode });
                 alert(`New code generated: ${newCode}`);
                 loadTeachers();
             } catch (error) {
@@ -247,7 +259,8 @@
         window.removeTeacher = async function(teacherId) {
             if (!confirm('Remove this teacher? This will delete all their data.')) return;
             try {
-                await db.collection('teachers').doc(teacherId).delete();
+                const firestore = getDb();
+                await firestore.collection('teachers').doc(teacherId).delete();
                 loadTeachers();
             } catch (error) {
                 alert('Failed: ' + error.message);
@@ -264,6 +277,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('addTeacherBtn')?.addEventListener('click', window.addTeacher);
         });
+        
+        // Test the database connection
+        const testDb = getDb();
+        console.log('Final database ID:', testDb._databaseId?.database || testDb._settings?.databaseId);
     </script>
 </body>
 </html>
