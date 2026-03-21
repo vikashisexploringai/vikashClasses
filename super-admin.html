@@ -171,69 +171,76 @@
         }
         
         // Add teacher
-        window.addTeacher = async function() {
-            const email = document.getElementById('teacherEmail').value;
-            const name = document.getElementById('teacherName').value;
-            
-            if (!email) {
-                alert('Please enter teacher email');
-                return;
-            }
-            
-            const teacherCode = generateTeacherCode();
-            const addBtn = document.getElementById('addTeacherBtn');
-            addBtn.textContent = 'Adding...';
-            addBtn.disabled = true;
-            
-            try {
-                // Check if teacher exists
-                const teachersRef = collection(db, 'teachers');
-                const q = query(teachersRef, where('email', '==', email));
-                const existing = await getDocs(q);
-                
-                if (!existing.empty) {
-                    alert('Teacher already exists');
-                    addBtn.textContent = 'Generate Code & Add';
-                    addBtn.disabled = false;
-                    return;
-                }
-                
-                // Add teacher
-                await addDoc(collection(db, 'teachers'), {
-                    email: email,
-                    displayName: name || email.split('@')[0],
-                    teacherCode: teacherCode,
-                    createdAt: serverTimestamp(),
-                    isActive: true,
-                    classes: []
-                });
-                
-                // Also store in superAdmin settings
-                const settingsRef = doc(db, 'superAdmin', 'settings');
-                const settingsDoc = await getDoc(settingsRef);
-                const teacherCodes = settingsDoc.exists ? settingsDoc.data().teacherCodes || {} : {};
-                teacherCodes[teacherCode] = {
-                    email: email,
-                    displayName: name || email.split('@')[0],
-                    createdAt: serverTimestamp(),
-                    used: false
-                };
-                await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
-                
-                alert(`Teacher added! Code: ${teacherCode}`);
-                
-                document.getElementById('teacherEmail').value = '';
-                document.getElementById('teacherName').value = '';
-                loadTeachers();
-                
-            } catch (error) {
-                console.error('Error adding teacher:', error);
-                alert('Failed to add teacher: ' + error.message);
-            } finally {
-                addBtn.textContent = 'Generate Code & Add';
-                addBtn.disabled = false;
-            }
+       // Add teacher
+window.addTeacher = async function() {
+    const email = document.getElementById('teacherEmail').value;
+    const name = document.getElementById('teacherName').value;
+    
+    if (!email) {
+        alert('Please enter teacher email');
+        return;
+    }
+    
+    const teacherCode = generateTeacherCode();
+    const addBtn = document.getElementById('addTeacherBtn');
+    addBtn.textContent = 'Adding...';
+    addBtn.disabled = true;
+    
+    try {
+        // Check if teacher exists
+        const teachersRef = collection(db, 'teachers');
+        const q = query(teachersRef, where('email', '==', email));
+        const existing = await getDocs(q);
+        
+        if (!existing.empty) {
+            alert('Teacher already exists');
+            addBtn.textContent = 'Generate Code & Add';
+            addBtn.disabled = false;
+            return;
+        }
+        
+        // Add teacher
+        await addDoc(collection(db, 'teachers'), {
+            email: email,
+            displayName: name || email.split('@')[0],
+            teacherCode: teacherCode,
+            createdAt: serverTimestamp(),
+            isActive: true,
+            classes: []
+        });
+        
+        // Also store in superAdmin settings (create if doesn't exist)
+        const settingsRef = doc(db, 'superAdmin', 'settings');
+        const settingsDoc = await getDoc(settingsRef);
+        
+        let teacherCodes = {};
+        if (settingsDoc.exists) {
+            teacherCodes = settingsDoc.data().teacherCodes || {};
+        }
+        
+        teacherCodes[teacherCode] = {
+            email: email,
+            displayName: name || email.split('@')[0],
+            createdAt: serverTimestamp(),
+            used: false
         };
+        
+        await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+        
+        alert(`Teacher added! Code: ${teacherCode}`);
+        
+        document.getElementById('teacherEmail').value = '';
+        document.getElementById('teacherName').value = '';
+        loadTeachers();
+        
+    } catch (error) {
+        console.error('Error adding teacher:', error);
+        alert('Failed to add teacher: ' + error.message);
+    } finally {
+        addBtn.textContent = 'Generate Code & Add';
+        addBtn.disabled = false;
+    }
+};
         
         // Generate new code
         window.generateNewCode = async function(teacherId) {
