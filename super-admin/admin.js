@@ -1,13 +1,23 @@
 // super-admin/admin.js
 // Main Super Admin application
 
+import { initFirebase } from '../js/firebase/firebaseInit.js';
 import { initAdminAuth, signInWithGoogle, logout, getCurrentAdmin } from './modules/auth.js';
 import { loadTeachers, addTeacher, generateNewTeacherCode, removeTeacher } from './modules/teachers.js';
 
 let currentTab = 'teachers';
+let firebaseInitialized = false;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Firebase FIRST before anything else
+    if (!firebaseInitialized) {
+        await initFirebase();
+        firebaseInitialized = true;
+        console.log('✅ Firebase initialized with vikashclasses-db');
+    }
+    
+    // Now set up auth
     await initAdminAuth(handleAuthState);
 });
 
