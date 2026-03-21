@@ -78,7 +78,10 @@ async function handleLogin() {
         loginBtn.textContent = 'Logging in...';
         loginBtn.disabled = true;
         
-        const { auth } = getAuth();
+        // Make sure Firebase is initialized
+        const { initFirebase, getAuth } = await import('../firebase/firebaseInit.js');
+        await initFirebase();
+        const auth = getAuth();
         
         if (!auth) {
             throw new Error('Auth not initialized');
