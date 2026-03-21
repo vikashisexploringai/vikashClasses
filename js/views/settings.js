@@ -106,51 +106,60 @@ function initDarkMode() {
 }
 
 function renderChangePassword() {
-    const { auth } = getAuth();
-    
-    if (!auth.currentUser) {
-        showToast('Please login first', 'error');
-        renderLogin();
-        return;
-    }
-    
-    const content = document.getElementById('main-content');
-    
-    updateHeader('Change Password', true, 'renderSettings');
-    
-    const html = `
-        <div class="auth-container">
-            <div class="auth-card">
-                <h2>Change Password</h2>
-                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
-                    Enter your current password and choose a new one
-                </p>
-                
-                <div class="form-group">
-                    <label for="currentPassword">Current Password</label>
-                    <input type="password" id="currentPassword" placeholder="Enter current password" class="auth-input">
+    // Make sure Firebase is initialized
+    import('../firebase/firebaseInit.js').then(({ initFirebase, getAuth }) => {
+        initFirebase().then(() => {
+            const auth = getAuth();
+            const user = auth ? auth.currentUser : null;
+            
+            if (!user) {
+                showToast('Please login first', 'error');
+                renderLogin();
+                return;
+            }
+            
+            const content = document.getElementById('main-content');
+            
+            updateHeader('Change Password', true, 'renderSettings');
+            
+            const html = `
+                <div class="auth-container">
+                    <div class="auth-card">
+                        <h2>Change Password</h2>
+                        <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
+                            Enter your current password and choose a new one
+                        </p>
+                        
+                        <div class="form-group">
+                            <label for="currentPassword">Current Password</label>
+                            <input type="password" id="currentPassword" placeholder="Enter current password" class="auth-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" id="newPassword" placeholder="At least 6 characters" class="auth-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirmNewPassword">Confirm New Password</label>
+                            <input type="password" id="confirmNewPassword" placeholder="Re-enter new password" class="auth-input">
+                        </div>
+                        
+                        <button class="auth-btn" onclick="window.handleChangePassword()">Update Password</button>
+                        
+                        <div class="auth-links">
+                            <button class="link-btn" onclick="window.renderSettings()">Back to Settings</button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="newPassword">New Password</label>
-                    <input type="password" id="newPassword" placeholder="At least 6 characters" class="auth-input">
-                </div>
-                
-                <div class="form-group">
-                    <label for="confirmNewPassword">Confirm New Password</label>
-                    <input type="password" id="confirmNewPassword" placeholder="Re-enter new password" class="auth-input">
-                </div>
-                
-                <button class="auth-btn" onclick="window.handleChangePassword()">Update Password</button>
-                
-                <div class="auth-links">
-                    <button class="link-btn" onclick="window.renderSettings()">Back to Settings</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    content.innerHTML = html;
+            `;
+            
+            content.innerHTML = html;
+        }).catch(error => {
+            console.error('Firebase init error:', error);
+            showToast('Failed to load', 'error');
+        });
+    });
 }
 
 async function handleChangePassword() {
@@ -178,10 +187,17 @@ async function handleChangePassword() {
         changeBtn.textContent = 'Verifying...';
         changeBtn.disabled = true;
         
-        const { auth } = getAuth();
-        const user = auth.currentUser;
-        const email = user.email;
+        // Make sure Firebase is initialized
+        const { initFirebase, getAuth } = await import('../firebase/firebaseInit.js');
+        await initFirebase();
+        const auth = getAuth();
+        const user = auth ? auth.currentUser : null;
         
+        if (!user) {
+            throw new Error('No user logged in');
+        }
+        
+        const email = user.email;
         const credential = firebase.auth.EmailAuthProvider.credential(email, currentPassword);
         await user.reauthenticateWithCredential(credential);
         
@@ -207,37 +223,46 @@ async function handleChangePassword() {
 }
 
 function confirmDeleteAccount() {
-    const { auth } = getAuth();
-    
-    if (!auth.currentUser) {
-        showToast('Please login first', 'error');
-        renderLogin();
-        return;
-    }
-    
-    const content = document.getElementById('main-content');
-    const previousContent = content.innerHTML;
-    
-    const deleteModalHTML = `
-        <div class="delete-modal-overlay">
-            <div class="delete-modal">
-                <div class="delete-modal-icon">⚠️</div>
-                <h3 class="delete-modal-title">Delete Account?</h3>
-                <p class="delete-modal-message">
-                    This action is <strong>PERMANENT</strong> and cannot be undone.<br>
-                    All your data will be lost.
-                </p>
-                <div class="delete-modal-buttons">
-                    <button class="delete-modal-cancel" onclick="window.cancelDelete()">Cancel</button>
-                    <button class="delete-modal-confirm" onclick="window.deleteAccount()">Delete Forever</button>
+    import('../firebase/firebaseInit.js').then(({ initFirebase, getAuth }) => {
+        initFirebase().then(() => {
+            const auth = getAuth();
+            const user = auth ? auth.currentUser : null;
+            
+            if (!user) {
+                showToast('Please login first', 'error');
+                renderLogin();
+                return;
+            }
+            
+            const content = document.getElementById('main-content');
+            const previousContent = content.innerHTML;
+            
+            const deleteModalHTML = `
+                <div class="delete-modal-overlay">
+                    <div class="delete-modal">
+                        <div class="delete-modal-icon">⚠️</div>
+                        <h3 class="delete-modal-title">Delete Account?</h3>
+                        <p class="delete-modal-message">
+                            This action is <strong>PERMANENT</strong> and cannot be undone.<br>
+                            All your data will be lost.
+                        </p>
+                        <div class="delete-modal-buttons">
+                            <button class="delete-modal-cancel" onclick="window.cancelDelete()">Cancel</button>
+                            <button class="delete-modal-confirm" onclick="window.deleteAccount()">Delete Forever</button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    `;
-    
-    window.previousContent = previousContent;
-    content.innerHTML = deleteModalHTML;
+            `;
+            
+            window.previousContent = previousContent;
+            content.innerHTML = deleteModalHTML;
+        }).catch(error => {
+            console.error('Firebase init error:', error);
+            showToast('Failed to load', 'error');
+        });
+    });
 }
+
 
 function cancelDelete() {
     const content = document.getElementById('main-content');
