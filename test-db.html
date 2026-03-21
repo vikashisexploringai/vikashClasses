@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Database Connection</title>
+</head>
+<body>
+    <h1>Testing vikashclasses-db Connection</h1>
+    <pre id="output">Loading...</pre>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import { initializeApp } from 'firebase/app';
+        import { getFirestore, collection, getDocs } from 'firebase/firestore';
+        
+        const output = document.getElementById('output');
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyACO39eJRrdbgowWcqgdp0DFkDPUhbQQfQ",
+            authDomain: "database-367af.firebaseapp.com",
+            projectId: "database-367af",
+            storageBucket: "database-367af.firebasestorage.app",
+            messagingSenderId: "246204653332",
+            appId: "1:246204653332:web:8daf25ea24112de940ec01"
+        };
+        
+        output.textContent = 'Initializing...\n';
+        
+        const app = initializeApp(firebaseConfig);
+        
+        // Try to connect to vikashclasses-db
+        try {
+            const db = getFirestore(app, 'vikashclasses-db');
+            output.textContent += '✅ Connected to Firestore with database: vikashclasses-db\n';
+            output.textContent += 'Database object: ' + JSON.stringify(db) + '\n';
+            
+            // Try to read teachers collection
+            output.textContent += '\nTrying to read teachers collection...\n';
+            const teachersRef = collection(db, 'teachers');
+            const snapshot = await getDocs(teachersRef);
+            output.textContent += `✅ Success! Found ${snapshot.size} teachers.\n`;
+            
+            snapshot.forEach(doc => {
+                output.textContent += `  - ${doc.id}: ${JSON.stringify(doc.data())}\n`;
+            });
+            
+        } catch (error) {
+            output.textContent += `❌ Error: ${error.message}\n`;
+            output.textContent += `Stack: ${error.stack}\n`;
+        }
+    </script>
+</body>
+</html>
