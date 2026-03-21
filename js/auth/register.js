@@ -131,6 +131,7 @@ function renderRegister() {
 }
 
 async function handleRegister() {
+    console.log('🔴 handleRegister called');
     const fullName = document.getElementById('fullName')?.value;
     const email = document.getElementById('email')?.value;
     const username = document.getElementById('username')?.value;
