@@ -16,6 +16,20 @@
       "description": "Numbers, fractions, and problem solving"
     },
     {
+  "id": "chemistry",
+  "name": "Chemistry",
+  "icon": "⚗️",
+  "color": "#10b981",
+  "description": "Atoms, molecules, reactions, and chemical properties"
+},
+{
+  "id": "physics",
+  "name": "Physics",
+  "icon": "⚡",
+  "color": "#f59e0b",
+  "description": "Motion, forces, energy, and the laws of nature"
+},
+    {
       "id": "english",
       "name": "English",
       "icon": "📚",

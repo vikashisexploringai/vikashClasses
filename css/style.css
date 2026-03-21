@@ -512,6 +512,8 @@ body {
 .subject-card.math::before { background: #2563eb; }
 .subject-card.english::before { background: #16a34a; }
 .subject-card.science::before { background: #dc2626; }
+.subject-card.chemistry::before { background: #10b981; }
+.subject-card.physics::before { background: #f59e0b; }
 
 .subject-header {
     display: flex;
@@ -1957,4 +1959,76 @@ body.dark-mode .toggle-btn.active {
 
 .mb-20 {
     margin-bottom: 20px;
+}
+
+
+/* All Activity Page */
+.all-activity-container {
+    padding: 16px;
+}
+
+.all-activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.all-activity-item {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.all-activity-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.all-activity-item-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.all-activity-item-score {
+    font-size: 18px;
+    font-weight: 700;
+    color: #3b82f6;
+}
+
+.all-activity-item-details {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #64748b;
+}
+
+.dot {
+    color: #94a3b8;
+}
+
+.back-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 16px;
+}
+
+.back-btn:hover {
+    background: #f8fafc;
 }

@@ -1,0 +1,41 @@
+# Add basic quiz styles to quiz.css
+cat > css/quiz.css << 'EOF'
+/* Quiz Styles */
+.quiz-question {
+    font-size: 24px;
+    text-align: center;
+    padding: 20px;
+}
+.quiz-option {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+}
+.quiz-option:hover {
+    background: #f0f0f0;
+}
+.quiz-option.correct {
+    background: #4caf50;
+    color: white;
+}
+.quiz-option.wrong {
+    background: #f44336;
+    color: white;
+}
+.timer {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px;
+}
+.score {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+}
+EOF

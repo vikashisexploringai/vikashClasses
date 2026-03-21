@@ -2,12 +2,12 @@
   "requireCodeForAll": false,
   "classes": [
     {
-      "id": "class-1",
-      "name": "Class 1",
-      "description": "Basic Mathematics and English",
+      "id": "shaan",
+      "name": "Shaan's Class",
+      "description": "Physics, Chemistry, and Math",
       "code": "CLASS1_2024",
       "codeRequired": true,
-      "subjects": ["math", "english"],
+      "subjects": ["physics","chemistry", "math"],
       "theme": "#2563eb"
     },
     {

@@ -1943,3 +1943,8 @@ window.setDarkMode = setDarkMode;
 window.renderChangePassword = renderChangePassword;
 window.handleChangePassword = handleChangePassword;
 window.confirmDeleteAccount = confirmDeleteAccount;
+window.viewAllActivity = () => {
+    import('./views/allActivity.js').then(module => {
+        module.renderAllActivity();
+    });
+};
