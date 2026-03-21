@@ -5,7 +5,7 @@ import { initFirebase, getAuth, getDb } from '../../js/firebase/firebaseInit.js'
 import { showToast } from '../../js/ui/toast.js';
 
 // Set your Super Admin email here
-export const SUPER_ADMIN_EMAIL = 'vikashsinghdeo@gmail.com'; // Replace with your email
+export const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com'; // Replace with your email
 
 let currentAdminUser = null;
 let authStateListener = null;
