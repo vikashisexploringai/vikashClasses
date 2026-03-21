@@ -66,29 +66,27 @@
             appId: "1:246204653332:web:8daf25ea24112de940ec01"
         };
         
-        // Initialize Firebase
+        // Initialize main Firebase app for Auth
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         
-        // IMPORTANT: Create a custom Firestore instance with the correct database
-        // This bypasses the default instance and ensures we always use vikashclasses-db
-        let db = null;
+        // Create a SECOND Firebase app for Firestore with different database
+        // This is the key - a separate app instance allows different database
+        let contentDb = null;
         
-        function getDb() {
-            if (db) return db;
-            // Create a new instance with the correct database
-            db = firebase.firestore();
-            try {
-                db.settings({ databaseId: 'vikashclasses-db', merge: true });
-            } catch (e) {
-                console.warn('Could not set database ID:', e.message);
-                // If settings can't be changed, create a fresh instance
-                db = firebase.firestore();
-                db._settings = { ...db._settings, databaseId: 'vikashclasses-db' };
-            }
-            console.log('✅ Database set to:', db._databaseId?.database || db._settings?.databaseId);
-            return db;
+        function getContentDb() {
+            if (contentDb) return contentDb;
+            
+            // Create a new app with a different name
+            const contentApp = firebase.initializeApp(firebaseConfig, 'contentApp');
+            contentDb = firebase.firestore(contentApp);
+            
+            // Set database ID for this specific instance
+            contentDb.settings({ databaseId: 'vikashclasses-db' });
+            
+            console.log('✅ Content DB instance created with database:', contentDb._databaseId?.database);
+            return contentDb;
         }
         
         const auth = firebase.auth();
@@ -146,8 +144,9 @@
             listDiv.innerHTML = '<div class="loading">Loading teachers...</div>';
             
             try {
-                const firestore = getDb();
-                const snapshot = await firestore.collection('teachers').get();
+                const db = getContentDb();
+                console.log('Loading teachers from database:', db._databaseId?.database);
+                const snapshot = await db.collection('teachers').get();
                 if (snapshot.empty) {
                     listDiv.innerHTML = '<p>No teachers added yet.</p>';
                     return;
@@ -194,10 +193,10 @@
             addBtn.disabled = true;
             
             try {
-                const firestore = getDb();
+                const db = getContentDb();
                 
                 // Check if teacher exists
-                const existing = await firestore.collection('teachers').where('email', '==', email).get();
+                const existing = await db.collection('teachers').where('email', '==', email).get();
                 if (!existing.empty) {
                     alert('Teacher already exists');
                     addBtn.textContent = 'Generate Code & Add';
@@ -206,7 +205,7 @@
                 }
                 
                 // Add teacher
-                await firestore.collection('teachers').add({
+                await db.collection('teachers').add({
                     email: email,
                     displayName: name || email.split('@')[0],
                     teacherCode: teacherCode,
@@ -216,7 +215,7 @@
                 });
                 
                 // Also store in superAdmin settings
-                const settingsRef = firestore.collection('superAdmin').doc('settings');
+                const settingsRef = db.collection('superAdmin').doc('settings');
                 const settingsDoc = await settingsRef.get();
                 const teacherCodes = settingsDoc.exists ? settingsDoc.data().teacherCodes || {} : {};
                 teacherCodes[teacherCode] = {
@@ -246,8 +245,8 @@
         window.generateNewCode = async function(teacherId) {
             const newCode = generateTeacherCode();
             try {
-                const firestore = getDb();
-                await firestore.collection('teachers').doc(teacherId).update({ teacherCode: newCode });
+                const db = getContentDb();
+                await db.collection('teachers').doc(teacherId).update({ teacherCode: newCode });
                 alert(`New code generated: ${newCode}`);
                 loadTeachers();
             } catch (error) {
@@ -259,8 +258,8 @@
         window.removeTeacher = async function(teacherId) {
             if (!confirm('Remove this teacher? This will delete all their data.')) return;
             try {
-                const firestore = getDb();
-                await firestore.collection('teachers').doc(teacherId).delete();
+                const db = getContentDb();
+                await db.collection('teachers').doc(teacherId).delete();
                 loadTeachers();
             } catch (error) {
                 alert('Failed: ' + error.message);
@@ -279,8 +278,8 @@
         });
         
         // Test the database connection
-        const testDb = getDb();
-        console.log('Final database ID:', testDb._databaseId?.database || testDb._settings?.databaseId);
+        const testDb = getContentDb();
+        console.log('Final database ID:', testDb._databaseId?.database);
     </script>
 </body>
 </html>
