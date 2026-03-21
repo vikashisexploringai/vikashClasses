@@ -24,7 +24,6 @@ function initFirebase() {
     
     initPromise = new Promise((resolve, reject) => {
         try {
-            // Check if firebase is available
             if (typeof firebase === 'undefined') {
                 console.error('Firebase SDK not loaded');
                 showToast('Firebase SDK not loaded', 'error');
@@ -32,21 +31,31 @@ function initFirebase() {
                 return;
             }
             
-            // Initialize Firebase
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
             }
             
             auth = firebase.auth();
-            db = firebase.firestore();
             
-            // Connect to vikashclasses database
-            db.settings({
-                databaseId: "vikashclasses-db"
-            });
+            // CRITICAL: Set database ID BEFORE creating any Firestore reference
+            // Instead of firebase.firestore(), use the modular approach
+            const { getFirestore } = firebase.firestore;
+            
+            // Get the Firestore instance and set database ID
+            db = getFirestore(firebase.app());
+            
+            // Set the database ID using the internal method
+            db._settings = {
+                ...db._settings,
+                databaseId: 'vikashclasses-db'
+            };
+            
+            // Alternative: use the settings method
+            db.settings({ databaseId: 'vikashclasses-db', merge: true });
             
             initialized = true;
             console.log('Firebase initialized, connected to vikashclasses-db');
+            console.log('Database ID:', db._databaseId);
             resolve({ auth, db });
             
         } catch (error) {
