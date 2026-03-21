@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin - vikashClasses</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .google-login-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .google-login-btn:hover {
+            background: #f8fafc;
+        }
+        .admin-content {
+            min-height: 400px;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+        .error-message {
+            background: #fef2f2;
+            color: #ef4444;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>👑 Super Admin Dashboard</h1>
+            <div id="userInfo"></div>
+        </div>
+        <div id="adminContent" class="admin-content">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script type="module">
+        // Import Firebase functions
+        import { initFirebase, getAuth, getDb } from './js/firebase/firebaseInit.js';
+        import { showToast } from './js/ui/toast.js';
+
+        // Super Admin email (YOUR Google account)
+        const SUPER_ADMIN_EMAIL = 'vikashsinghdeo@gmail.com'; // Replace with your email
+
+        let currentUser = null;
+
+        async function init() {
+            await initFirebase();
+            const auth = getAuth();
+            
+            auth.onAuthStateChanged(async (user) => {
+                if (user && user.email === SUPER_ADMIN_EMAIL) {
+                    currentUser = user;
+                    showAdminDashboard(user);
+                } else if (user) {
+                    // Logged in but not super admin
+                    document.getElementById('adminContent').innerHTML = `
+                        <div class="error-message">
+                            ⚠️ You are not authorized to access the Super Admin panel.
+                            <br><br>
+                            <button onclick="window.location.href='index.html'" style="padding: 8px 16px; margin-top: 16px;">Back to Student App</button>
+                        </div>
+                    `;
+                    document.getElementById('userInfo').innerHTML = `
+                        <div>Signed in as: ${user.email}</div>
+                        <button onclick="logout()" style="margin-left: 16px;">Logout</button>
+                    `;
+                } else {
+                    // Not logged in - show Google Sign-In
+                    showGoogleLogin();
+                }
+            });
+        }
+
+        function showGoogleLogin() {
+            document.getElementById('adminContent').innerHTML = `
+                <div style="text-align: center; padding: 60px;">
+                    <h2>🔐 Admin Access Required</h2>
+                    <p style="margin: 20px 0;">Sign in with your Google account to access the Super Admin Dashboard.</p>
+                    <button id="googleSignInBtn" class="google-login-btn">
+                        <span>🔑</span> Sign in with Google
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('googleSignInBtn').onclick = async () => {
+                const auth = getAuth();
+                const provider = new firebase.auth.GoogleAuthProvider();
+                
+                try {
+                    const result = await auth.signInWithPopup(provider);
+                    console.log('Google sign-in successful:', result.user.email);
+                } catch (error) {
+                    console.error('Google sign-in error:', error);
+                    showToast('Login failed: ' + error.message, 'error');
+                }
+            };
+        }
+
+        function showAdminDashboard(user) {
+            document.getElementById('userInfo').innerHTML = `
+                <div>👑 ${user.displayName || user.email}</div>
+                <button onclick="logout()" style="margin-left: 16px; padding: 6px 12px;">Logout</button>
+            `;
+            
+            document.getElementById('adminContent').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h2>✅ Welcome, Super Admin!</h2>
+                    <p style="margin: 20px 0;">Super Admin Dashboard is ready.</p>
+                    <p>Next: Teacher Management</p>
+                </div>
+            `;
+        }
+
+        async function logout() {
+            const auth = getAuth();
+            await auth.signOut();
+            showGoogleLogin();
+        }
+
+        window.logout = logout;
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
