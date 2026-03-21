@@ -78,8 +78,8 @@
         const auth = getAuth(app);
         
         // Connect to vikashclasses-db (this works!)
-        const db = getFirestore(app, 'vikashclasses-db');
-        console.log('✅ Connected to vikashclasses-db');
+        const db = getFirestore(app, 'vikashclasses');
+        console.log('✅ Connected to vikashclasses');
         
         const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
         
@@ -276,7 +276,7 @@
         // Attach event listeners
         document.getElementById('addTeacherBtn')?.addEventListener('click', window.addTeacher);
         
-        console.log('✅ Super Admin ready, connected to vikashclasses-db');
+        console.log('✅ Super Admin ready, connected to vikashclasses');
     </script>
 </body>
 </html>
