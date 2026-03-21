@@ -169,7 +169,7 @@ async function handleRegister() {
     
     try {
         const registerBtn = document.querySelector('.auth-btn');
-        registerBtn.textContent = 'Checking...';
+        registerBtn.textContent = 'Checking username...';
         registerBtn.disabled = true;
         
         const db = getDb();
@@ -185,19 +185,24 @@ async function handleRegister() {
             return;
         }
         
-        registerBtn.textContent = 'Creating Account...';
+        registerBtn.textContent = 'Creating account...';
         
-        // Create user with REAL email
+        // STEP 1: Create user in Firebase Auth
+        console.log('Creating user with email:', email);
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
+        console.log('User created:', user.uid);
         
+        // STEP 2: Update profile
         await user.updateProfile({ displayName: fullName });
+        console.log('Profile updated');
         
+        // STEP 3: Set persistence
         await auth.setPersistence(
             rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
         );
         
-        // Create user document in Firestore
+        // STEP 4: Create user document in Firestore
         const userData = {
             uid: user.uid,
             username: username,
@@ -209,22 +214,31 @@ async function handleRegister() {
             overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 }
         };
         
-        // Add teacher code if provided
         if (teacherCode) {
-            // Validate teacher code (you'll implement this)
             userData.teacherCode = teacherCode;
             userData.teacherCodeProvidedAt = firebase.firestore.FieldValue.serverTimestamp();
         }
         
+        console.log('Writing to Firestore...');
         await db.collection('users').doc(user.uid).set(userData);
+        console.log('Firestore write complete');
         
         showToast('Account created successfully!', 'success');
         
+        // Force a small delay to ensure auth state propagates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
     } catch (error) {
         console.error('Registration error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
         
         if (error.code === 'auth/email-already-in-use') {
             showInlineMessage('email', 'Email already registered. Please use a different email or login.');
+        } else if (error.code === 'auth/weak-password') {
+            showInlineMessage('password', 'Password is too weak. Use at least 6 characters.');
+        } else if (error.code === 'auth/invalid-email') {
+            showInlineMessage('email', 'Invalid email address.');
         } else {
             showToast('Registration failed: ' + error.message, 'error');
         }
