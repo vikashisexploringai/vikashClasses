@@ -1,7 +1,7 @@
 // js/auth/logout.js
 // Logout functionality with confirmation modal
 
-import { getAuth } from '../firebase/firebaseInit.js';
+import { getAuth, initFirebase } from '../firebase/firebaseInit.js';
 import { showToast } from '../ui/toast.js';
 import { renderLogin } from './login.js';
 import { renderSettings } from '../views/settings.js';
@@ -43,7 +43,15 @@ function cancelLogout() {
 async function confirmLogout() {
     try {
         showToast('Logging out...', 'info');
-        const { auth } = getAuth();
+        
+        // Make sure Firebase is initialized
+        await initFirebase();
+        const auth = getAuth();
+        
+        if (!auth) {
+            throw new Error('Auth not initialized');
+        }
+        
         await auth.signOut();
         renderLogin();
         showToast('Logged out successfully', 'success');
