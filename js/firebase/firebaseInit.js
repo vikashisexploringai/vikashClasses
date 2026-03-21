@@ -37,25 +37,27 @@ function initFirebase() {
             
             auth = firebase.auth();
             
-            // CRITICAL: Set database ID BEFORE creating any Firestore reference
-            // Instead of firebase.firestore(), use the modular approach
-            const { getFirestore } = firebase.firestore;
+            // Get Firestore instance
+            db = firebase.firestore();
             
-            // Get the Firestore instance and set database ID
-            db = getFirestore(firebase.app());
+            // Force set the database ID by directly modifying the internal settings
+            // This is a hack but works with compat SDK
+            if (db._settings) {
+                db._settings.databaseId = 'vikashclasses-db';
+            } else if (db._delegate && db._delegate._settings) {
+                db._delegate._settings.databaseId = 'vikashclasses-db';
+            }
             
-            // Set the database ID using the internal method
-            db._settings = {
-                ...db._settings,
-                databaseId: 'vikashclasses-db'
-            };
-            
-            // Alternative: use the settings method
-            db.settings({ databaseId: 'vikashclasses-db', merge: true });
+            // Also try the settings method with merge
+            try {
+                db.settings({ databaseId: 'vikashclasses-db', merge: true });
+            } catch (e) {
+                console.log('Settings merge failed, but continuing:', e.message);
+            }
             
             initialized = true;
-            console.log('Firebase initialized, connected to vikashclasses-db');
-            console.log('Database ID:', db._databaseId);
+            console.log('Firebase initialized');
+            console.log('Database ID check:', db._databaseId || db._settings?.databaseId || 'unknown');
             resolve({ auth, db });
             
         } catch (error) {
