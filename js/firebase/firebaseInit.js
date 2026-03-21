@@ -37,27 +37,14 @@ function initFirebase() {
             
             auth = firebase.auth();
             
-            // Get Firestore instance
+            // Create Firestore instance and set database ID
             db = firebase.firestore();
             
-            // Force set the database ID by directly modifying the internal settings
-            // This is a hack but works with compat SDK
-            if (db._settings) {
-                db._settings.databaseId = 'vikashclasses-db';
-            } else if (db._delegate && db._delegate._settings) {
-                db._delegate._settings.databaseId = 'vikashclasses-db';
-            }
-            
-            // Also try the settings method with merge
-            try {
-                db.settings({ databaseId: 'vikashclasses-db', merge: true });
-            } catch (e) {
-                console.log('Settings merge failed, but continuing:', e.message);
-            }
+            // Set database ID - this MUST be the first Firestore call
+            db.settings({ databaseId: 'vikashclasses-db' });
             
             initialized = true;
-            console.log('Firebase initialized');
-            console.log('Database ID check:', db._databaseId || db._settings?.databaseId || 'unknown');
+            console.log('✅ Firebase initialized with vikashclasses-db');
             resolve({ auth, db });
             
         } catch (error) {
