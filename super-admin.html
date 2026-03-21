@@ -14,13 +14,12 @@
         .btn-primary { background: #3b82f6; color: white; }
         .btn-danger { background: #ef4444; color: white; }
         .btn-warning { background: #f59e0b; color: white; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; width: 100%; margin-bottom: 10px; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; width: 100%; margin-bottom: 10px; }
         .teacher-card { border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
         .teacher-info { flex: 1; }
         .teacher-code { font-family: monospace; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 14px; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
-        .success { color: #22c55e; background: #e6f7e6; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
     </style>
 </head>
 <body>
@@ -50,13 +49,21 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    
-    <script>
-        // Firebase config
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth';
+        import { getFirestore, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+        
         const firebaseConfig = {
             apiKey: "AIzaSyACO39eJRrdbgowWcqgdp0DFkDPUhbQQfQ",
             authDomain: "database-367af.firebaseapp.com",
@@ -66,62 +73,48 @@
             appId: "1:246204653332:web:8daf25ea24112de940ec01"
         };
         
-        // Initialize main Firebase app for Auth
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         
-        // Create a SECOND Firebase app for Firestore with different database
-        // This is the key - a separate app instance allows different database
-        let contentDb = null;
+        // Connect to vikashclasses-db (this works!)
+        const db = getFirestore(app, 'vikashclasses-db');
+        console.log('✅ Connected to vikashclasses-db');
         
-        function getContentDb() {
-            if (contentDb) return contentDb;
-            
-            // Create a new app with a different name
-            const contentApp = firebase.initializeApp(firebaseConfig, 'contentApp');
-            contentDb = firebase.firestore(contentApp);
-            
-            // Set database ID for this specific instance
-            contentDb.settings({ databaseId: 'vikashclasses-db' });
-            
-            console.log('✅ Content DB instance created with database:', contentDb._databaseId?.database);
-            return contentDb;
-        }
-        
-        const auth = firebase.auth();
         const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
         
-        let currentUser = null;
+        // UI Elements
+        const authSection = document.getElementById('authSection');
+        const adminPanel = document.getElementById('adminPanel');
+        const userInfoDiv = document.getElementById('userInfo');
         
         // Auth state listener
-        auth.onAuthStateChanged(async (user) => {
+        onAuthStateChanged(auth, (user) => {
             if (user && user.email === SUPER_ADMIN_EMAIL) {
-                currentUser = user;
-                document.getElementById('userInfo').innerHTML = `
+                userInfoDiv.innerHTML = `
                     <span>👑 ${user.displayName || user.email}</span>
-                    <button onclick="logout()" style="margin-left: 12px;">Logout</button>
+                    <button onclick="window.logout()" style="margin-left: 12px;">Logout</button>
                 `;
-                document.getElementById('authSection').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
+                authSection.style.display = 'none';
+                adminPanel.style.display = 'block';
                 loadTeachers();
             } else if (user) {
-                document.getElementById('authSection').innerHTML = `
+                authSection.innerHTML = `
                     <div class="error">⚠️ Unauthorized. You are not a Super Admin.</div>
-                    <button onclick="logout()">Logout</button>
+                    <button onclick="window.logout()">Logout</button>
                 `;
             } else {
-                document.getElementById('userInfo').innerHTML = '';
-                document.getElementById('authSection').style.display = 'block';
-                document.getElementById('adminPanel').style.display = 'none';
+                userInfoDiv.innerHTML = '';
+                authSection.style.display = 'block';
+                adminPanel.style.display = 'none';
             }
         });
         
         // Google Login
         document.getElementById('googleLoginBtn')?.addEventListener('click', async () => {
-            const provider = new firebase.auth.GoogleAuthProvider();
+            const provider = new GoogleAuthProvider();
             try {
-                await auth.signInWithPopup(provider);
+                await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error('Login error:', error);
                 alert('Login failed: ' + error.message);
@@ -144,28 +137,28 @@
             listDiv.innerHTML = '<div class="loading">Loading teachers...</div>';
             
             try {
-                const db = getContentDb();
-                console.log('Loading teachers from database:', db._databaseId?.database);
-                const snapshot = await db.collection('teachers').get();
+                const teachersRef = collection(db, 'teachers');
+                const snapshot = await getDocs(teachersRef);
+                
                 if (snapshot.empty) {
                     listDiv.innerHTML = '<p>No teachers added yet.</p>';
                     return;
                 }
                 
                 let html = '';
-                snapshot.forEach(doc => {
-                    const teacher = doc.data();
+                snapshot.forEach(docSnap => {
+                    const teacher = docSnap.data();
                     html += `
                         <div class="teacher-card">
                             <div class="teacher-info">
-                                <strong>${teacher.displayName || teacher.email}</strong><br>
-                                <small>${teacher.email}</small><br>
+                                <strong>${escapeHtml(teacher.displayName || teacher.email)}</strong><br>
+                                <small>${escapeHtml(teacher.email)}</small><br>
                                 <span class="teacher-code">Code: ${teacher.teacherCode}</span>
                                 <small> · Added: ${teacher.createdAt?.toDate ? new Date(teacher.createdAt.toDate()).toLocaleDateString() : 'N/A'}</small>
                             </div>
                             <div>
-                                <button class="btn-warning" onclick="generateNewCode('${doc.id}')">New Code</button>
-                                <button class="btn-danger" onclick="removeTeacher('${doc.id}')">Remove</button>
+                                <button class="btn-warning" onclick="window.generateNewCode('${docSnap.id}')">New Code</button>
+                                <button class="btn-danger" onclick="window.removeTeacher('${docSnap.id}')">Remove</button>
                             </div>
                         </div>
                     `;
@@ -193,10 +186,11 @@
             addBtn.disabled = true;
             
             try {
-                const db = getContentDb();
-                
                 // Check if teacher exists
-                const existing = await db.collection('teachers').where('email', '==', email).get();
+                const teachersRef = collection(db, 'teachers');
+                const q = query(teachersRef, where('email', '==', email));
+                const existing = await getDocs(q);
+                
                 if (!existing.empty) {
                     alert('Teacher already exists');
                     addBtn.textContent = 'Generate Code & Add';
@@ -205,26 +199,26 @@
                 }
                 
                 // Add teacher
-                await db.collection('teachers').add({
+                await addDoc(collection(db, 'teachers'), {
                     email: email,
                     displayName: name || email.split('@')[0],
                     teacherCode: teacherCode,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: serverTimestamp(),
                     isActive: true,
                     classes: []
                 });
                 
                 // Also store in superAdmin settings
-                const settingsRef = db.collection('superAdmin').doc('settings');
-                const settingsDoc = await settingsRef.get();
+                const settingsRef = doc(db, 'superAdmin', 'settings');
+                const settingsDoc = await getDoc(settingsRef);
                 const teacherCodes = settingsDoc.exists ? settingsDoc.data().teacherCodes || {} : {};
                 teacherCodes[teacherCode] = {
                     email: email,
                     displayName: name || email.split('@')[0],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: serverTimestamp(),
                     used: false
                 };
-                await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
+                await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
                 
                 alert(`Teacher added! Code: ${teacherCode}`);
                 
@@ -245,8 +239,8 @@
         window.generateNewCode = async function(teacherId) {
             const newCode = generateTeacherCode();
             try {
-                const db = getContentDb();
-                await db.collection('teachers').doc(teacherId).update({ teacherCode: newCode });
+                const teacherRef = doc(db, 'teachers', teacherId);
+                await updateDoc(teacherRef, { teacherCode: newCode });
                 alert(`New code generated: ${newCode}`);
                 loadTeachers();
             } catch (error) {
@@ -258,8 +252,8 @@
         window.removeTeacher = async function(teacherId) {
             if (!confirm('Remove this teacher? This will delete all their data.')) return;
             try {
-                const db = getContentDb();
-                await db.collection('teachers').doc(teacherId).delete();
+                const teacherRef = doc(db, 'teachers', teacherId);
+                await deleteDoc(teacherRef);
                 loadTeachers();
             } catch (error) {
                 alert('Failed: ' + error.message);
@@ -272,14 +266,17 @@
             location.reload();
         };
         
-        // Attach event listeners after DOM loads
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('addTeacherBtn')?.addEventListener('click', window.addTeacher);
-        });
+        function escapeHtml(text) {
+            if (!text) return text;
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         
-        // Test the database connection
-        const testDb = getContentDb();
-        console.log('Final database ID:', testDb._databaseId?.database);
+        // Attach event listeners
+        document.getElementById('addTeacherBtn')?.addEventListener('click', window.addTeacher);
+        
+        console.log('✅ Super Admin ready, connected to vikashclasses-db');
     </script>
 </body>
 </html>
