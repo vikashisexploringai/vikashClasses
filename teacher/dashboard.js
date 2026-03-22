@@ -85,24 +85,39 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // Login
+// Login
 loginBtn.addEventListener('click', async () => {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     
     if (!email || !password) {
-        showToast('Please enter email and password', 'error');
+        showToast('Please enter both email and password', 'error');
         return;
     }
     
     try {
         await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-            showToast('No account found with this email', 'error');
-        } else if (error.code === 'auth/wrong-password') {
-            showToast('Incorrect password', 'error');
-        } else {
-            showToast('Login failed: ' + error.message, 'error');
+        console.error('Login error:', error.code);
+        
+        switch (error.code) {
+            case 'auth/user-not-found':
+                showToast('No account found with this email address', 'error');
+                break;
+            case 'auth/wrong-password':
+                showToast('Incorrect password. Please try again.', 'error');
+                break;
+            case 'auth/invalid-email':
+                showToast('Please enter a valid email address', 'error');
+                break;
+            case 'auth/too-many-requests':
+                showToast('Too many failed attempts. Please try again later.', 'error');
+                break;
+            case 'auth/user-disabled':
+                showToast('This account has been disabled. Contact support.', 'error');
+                break;
+            default:
+                showToast('Login failed: ' + error.message, 'error');
         }
     }
 });
@@ -133,12 +148,11 @@ confirmResetBtn.addEventListener('click', async () => {
     confirmResetBtn.textContent = 'Verifying...';
     
     try {
-        // Verify teacher code matches email
         const q = query(collection(db, 'teachers'), where('teacherCode', '==', teacherCode));
         const snapshot = await getDocs(q);
         
         if (snapshot.empty) {
-            showToast('Invalid teacher code', 'error');
+            showToast('Invalid teacher code. Please check with your administrator.', 'error');
             confirmResetBtn.disabled = false;
             confirmResetBtn.textContent = 'Send Reset Email';
             return;
@@ -147,25 +161,38 @@ confirmResetBtn.addEventListener('click', async () => {
         const teacherData = snapshot.docs[0].data();
         
         if (teacherData.email !== email) {
-            showToast('Teacher code does not match this email', 'error');
+            showToast('This teacher code is not associated with this email address.', 'error');
             confirmResetBtn.disabled = false;
             confirmResetBtn.textContent = 'Send Reset Email';
             return;
         }
         
-        // Send password reset email
         await sendPasswordResetEmail(auth, email);
         showToast('Password reset email sent! Check your inbox (and spam folder).', 'success');
         forgotPasswordModal.style.display = 'none';
         
     } catch (error) {
-        console.error('Password reset error:', error);
-        showToast('Failed to send reset email: ' + error.message, 'error');
+        console.error('Password reset error:', error.code);
+        
+        switch (error.code) {
+            case 'auth/user-not-found':
+                showToast('No account found with this email address', 'error');
+                break;
+            case 'auth/invalid-email':
+                showToast('Please enter a valid email address', 'error');
+                break;
+            case 'auth/too-many-requests':
+                showToast('Too many requests. Please try again later.', 'error');
+                break;
+            default:
+                showToast('Failed to send reset email: ' + error.message, 'error');
+        }
     } finally {
         confirmResetBtn.disabled = false;
         confirmResetBtn.textContent = 'Send Reset Email';
     }
 });
+
 
 // Logout
 logoutBtn.addEventListener('click', async () => {
