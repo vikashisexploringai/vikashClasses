@@ -70,13 +70,13 @@
 
     <script>
         const firebaseConfig = {
-  apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
-  authDomain: "vikash-classes-c98f8.firebaseapp.com",
-  projectId: "vikash-classes-c98f8",
-  storageBucket: "vikash-classes-c98f8.firebasestorage.app",
-  messagingSenderId: "456891384843",
-  appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
-};
+            apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
+            authDomain: "vikash-classes-c98f8.firebaseapp.com",
+            projectId: "vikash-classes-c98f8",
+            storageBucket: "vikash-classes-c98f8.firebasestorage.app",
+            messagingSenderId: "456891384843",
+            appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
+        };
         
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
@@ -127,12 +127,12 @@
             setupBtn.textContent = 'Setting up...';
             
             try {
-                // Verify teacher code
+                // Step 1: Verify teacher code in Firestore
                 const q = db.collection('teachers').where('teacherCode', '==', teacherCode);
                 const snapshot = await q.get();
                 
                 if (snapshot.empty) {
-                    showStatus('Invalid teacher code', 'error');
+                    showStatus('Invalid teacher code. Please check with your administrator.', 'error');
                     setupBtn.disabled = false;
                     setupBtn.textContent = 'Set Up Account';
                     return;
@@ -142,37 +142,43 @@
                 const teacherData = teacherDoc.data();
                 
                 if (teacherData.email !== teacherEmail) {
-                    showStatus('Email does not match teacher record', 'error');
+                    showStatus('Email does not match teacher record.', 'error');
                     setupBtn.disabled = false;
                     setupBtn.textContent = 'Set Up Account';
                     return;
                 }
                 
                 if (teacherData.hasSetupPassword) {
-                    showStatus('Account already set up. Please login.', 'error');
+                    showStatus('Account already set up. Please login instead.', 'error');
                     setupBtn.disabled = false;
                     setupBtn.textContent = 'Set Up Account';
                     return;
                 }
                 
-                // Try to create account
-                let user;
+                // Step 2: Check if Auth account exists
+                let userExists = false;
                 try {
-                    const userCredential = await auth.createUserWithEmailAndPassword(teacherEmail, password);
-                    user = userCredential.user;
-                } catch (createError) {
-                    if (createError.code === 'auth/email-already-in-use') {
-                        // Account exists, send password reset
-                        await auth.sendPasswordResetEmail(teacherEmail);
-                        showStatus(`An account already exists for ${teacherEmail}. A password reset email has been sent. Please check your inbox and set a new password, then login.`, 'info');
-                        setupBtn.disabled = false;
-                        setupBtn.textContent = 'Set Up Account';
-                        return;
-                    }
-                    throw createError;
+                    const methods = await auth.fetchSignInMethodsForEmail(teacherEmail);
+                    userExists = methods.length > 0;
+                    console.log('Sign-in methods:', methods);
+                } catch (e) {
+                    console.log('fetchSignInMethods failed:', e);
                 }
                 
-                // Update teacher record
+                if (userExists) {
+                    // Account exists, send password reset
+                    await auth.sendPasswordResetEmail(teacherEmail);
+                    showStatus(`An account already exists for ${teacherEmail}. A password reset email has been sent. Please check your inbox and set a new password, then login.`, 'info');
+                    setupBtn.disabled = false;
+                    setupBtn.textContent = 'Set Up Account';
+                    return;
+                }
+                
+                // Step 3: Create new account
+                const userCredential = await auth.createUserWithEmailAndPassword(teacherEmail, password);
+                const user = userCredential.user;
+                
+                // Step 4: Update teacher record
                 await teacherDoc.ref.update({
                     authUid: user.uid,
                     hasSetupPassword: true,
@@ -187,7 +193,13 @@
                 
             } catch (error) {
                 console.error('Setup error:', error);
-                showStatus('Setup failed: ' + error.message, 'error');
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    showStatus('This email already has an account. Please use the login page.', 'error');
+                } else {
+                    showStatus('Setup failed: ' + error.message, 'error');
+                }
+                
                 setupBtn.disabled = false;
                 setupBtn.textContent = 'Set Up Account';
             }
