@@ -11,7 +11,6 @@ import {
     addTeacher,
     removeTeacher
 } from './modules/teachers.js';
-import { db, collection, getDocs, doc, getDoc, deleteDoc } from './modules/auth.js';
 
 let currentTeacher = null;
 let currentClass = null;
@@ -31,9 +30,7 @@ function handleAuthState(state, user) {
         authSection.style.display = 'none';
         adminPanel.style.display = 'block';
         logoutBtn.style.display = 'block';
-        setupTabs();
         showTeachersView();
-        loadAllClasses(); // Preload classes for the Classes tab
     } else if (state === 'unauthorized') {
         authSection.innerHTML = `
             <div class="error">⚠️ You are not authorized as Super Admin.</div>
@@ -56,56 +53,29 @@ function handleAuthState(state, user) {
     }
 }
 
-// Tab switching
-function setupTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+// Add teacher button
+document.getElementById('addTeacherBtn')?.addEventListener('click', async () => {
+    const email = document.getElementById('teacherEmail')?.value;
+    const name = document.getElementById('teacherName')?.value;
     
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.dataset.tab;
-            
-            // Update active class on buttons
-            tabBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Update active class on content
-            tabContents.forEach(content => content.classList.remove('active'));
-            document.getElementById(`tab-${tabId}`).classList.add('active');
-            
-            // Load data for the tab
-            if (tabId === 'teachers') {
-                loadTeachersList();
-            } else if (tabId === 'classes') {
-                loadAllClasses();
-            }
-        });
-    });
+    if (!email) {
+        alert('Please enter teacher email');
+        return;
+    }
     
-    // Add teacher button
-    document.getElementById('addTeacherBtn')?.addEventListener('click', async () => {
-        const email = document.getElementById('teacherEmail')?.value;
-        const name = document.getElementById('teacherName')?.value;
-        
-        if (!email) {
-            alert('Please enter teacher email');
-            return;
-        }
-        
-        const addBtn = document.getElementById('addTeacherBtn');
-        addBtn.textContent = 'Adding...';
-        addBtn.disabled = true;
-        
-        await addTeacher(email, name);
-        
-        addBtn.textContent = 'Generate Code & Add';
-        addBtn.disabled = false;
-        
-        document.getElementById('teacherEmail').value = '';
-        document.getElementById('teacherName').value = '';
-        loadTeachersList();
-    });
-}
+    const addBtn = document.getElementById('addTeacherBtn');
+    addBtn.textContent = 'Adding...';
+    addBtn.disabled = true;
+    
+    await addTeacher(email, name);
+    
+    addBtn.textContent = 'Generate Code & Add';
+    addBtn.disabled = false;
+    
+    document.getElementById('teacherEmail').value = '';
+    document.getElementById('teacherName').value = '';
+    loadTeachersList();
+});
 
 // Navigation functions
 function showTeachersView() {
@@ -161,17 +131,17 @@ async function loadTeachersList() {
     for (const teacher of teachers) {
         const classes = await loadTeacherClasses(teacher.id);
         html += `
-    <div class="teacher-card" onclick="window.viewTeacher('${teacher.id}')">
-        <div class="teacher-name">${escapeHtml(teacher.displayName || teacher.email)}</div>
-        <div class="teacher-email">${escapeHtml(teacher.email)}</div>
-        <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
-        <div class="stats">📚 ${classes.length} classes</div>
-        <div class="button-group">
-            <button class="view-btn" onclick="event.stopPropagation(); window.viewTeacher('${teacher.id}')">View Classes</button>
-            <button class="delete-btn" onclick="event.stopPropagation(); window.deleteTeacher('${teacher.id}')">Remove</button>
-        </div>
-    </div>
-`;
+            <div class="teacher-card">
+                <div class="teacher-name">${escapeHtml(teacher.displayName || teacher.email)}</div>
+                <div class="teacher-email">${escapeHtml(teacher.email)}</div>
+                <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
+                <div class="stats">📚 ${classes.length} classes</div>
+                <div class="button-group">
+                    <button class="view-btn" onclick="window.viewTeacher('${teacher.id}')">View Classes</button>
+                    <button class="delete-btn" onclick="window.deleteTeacher('${teacher.id}')">Remove</button>
+                </div>
+            </div>
+        `;
     }
     listDiv.innerHTML = html;
 }
@@ -183,26 +153,25 @@ async function loadTeacherDetail(teacher) {
     
     const classes = await loadTeacherClasses(teacher.id);
     
-    let html = '';
-    
     if (classes.length === 0) {
-        html = '<p>No classes created yet.</p>';
-    } else {
-        for (const cls of classes) {
-            const students = await loadClassStudents(cls.id);
-            html += `
-                <div class="class-card" onclick="window.viewClass('${cls.id}')">
-                    <h3>📖 ${escapeHtml(cls.name)}</h3>
-                    <div>${escapeHtml(cls.description || 'No description')}</div>
-                    <div class="stats">
-                        <span>👥 ${students.length} students</span>
-                        <span>📅 Created: ${cls.createdAt?.toDate ? new Date(cls.createdAt.toDate()).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                </div>
-            `;
-        }
+        contentDiv.innerHTML = '<p>No classes created yet.</p>';
+        return;
     }
     
+    let html = '';
+    for (const cls of classes) {
+        const students = await loadClassStudents(cls.id);
+        html += `
+            <div class="class-card" onclick="window.viewClass('${cls.id}')">
+                <div class="class-name">📖 ${escapeHtml(cls.name)}</div>
+                <div class="class-description">${escapeHtml(cls.description || 'No description')}</div>
+                <div class="stats-detail">
+                    <span>👥 ${students.length} students</span>
+                    <span>📅 Created: ${cls.createdAt?.toDate ? new Date(cls.createdAt.toDate()).toLocaleDateString() : 'N/A'}</span>
+                </div>
+            </div>
+        `;
+    }
     contentDiv.innerHTML = html;
 }
 
@@ -213,26 +182,25 @@ async function loadClassDetail(classItem) {
     
     const students = await loadClassStudents(classItem.id);
     
-    let html = '';
-    
     if (students.length === 0) {
-        html = '<p>No students enrolled yet.</p>';
-    } else {
-        for (const student of students) {
-            html += `
-                <div class="student-card" onclick="window.viewStudent('${student.id}')">
-                    <h3>${escapeHtml(student.displayName || student.username)}</h3>
-                    <div>@${escapeHtml(student.username)}</div>
-                    <div>📧 ${escapeHtml(student.email)}</div>
-                    <div class="stats">
-                        <span>📅 Enrolled: ${student.enrolledAt?.toDate ? new Date(student.enrolledAt.toDate()).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    <div class="progress-preview">📊 Click to view progress & attempts</div>
-                </div>
-            `;
-        }
+        contentDiv.innerHTML = '<p>No students enrolled yet.</p>';
+        return;
     }
     
+    let html = '';
+    for (const student of students) {
+        html += `
+            <div class="student-card" onclick="window.viewStudent('${student.id}')">
+                <div class="student-name">👤 ${escapeHtml(student.displayName || student.username)}</div>
+                <div class="student-username">@${escapeHtml(student.username)}</div>
+                <div class="stats-detail">
+                    <span>📧 ${escapeHtml(student.email)}</span>
+                    <span>📅 Enrolled: ${student.enrolledAt?.toDate ? new Date(student.enrolledAt.toDate()).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div class="progress-preview">📊 Click to view progress & attempts</div>
+            </div>
+        `;
+    }
     contentDiv.innerHTML = html;
 }
 
@@ -252,7 +220,7 @@ async function loadStudentDetail(student) {
     let html = `
         <div class="card">
             <h3>📊 Overall Statistics</h3>
-            <div class="stats" style="flex-wrap: wrap;">
+            <div class="stats-detail">
                 <div><strong>${overall.totalPoints}</strong> points</div>
                 <div><strong>${overall.quizzesTaken}</strong> quizzes</div>
                 <div><strong>${avgAccuracy}%</strong> accuracy</div>
@@ -260,7 +228,7 @@ async function loadStudentDetail(student) {
             </div>
         </div>
         
-        <h3>📝 Recent Attempts</h3>
+        <h3 style="margin: 20px 0 12px 0;">📝 Recent Attempts</h3>
     `;
     
     if (attempts.length === 0) {
@@ -273,7 +241,7 @@ async function loadStudentDetail(student) {
                     <div>Score: ${attempt.score}/${attempt.maxPossible} (${attempt.accuracy}%)</div>
                     <div>${attempt.questionsCorrect}/${attempt.totalQuestions} correct</div>
                     <div>⏱️ ${formatTime(attempt.timeSpent || 0)}</div>
-                    <div class="stats">📅 ${attempt.completedAt?.toDate ? new Date(attempt.completedAt.toDate()).toLocaleString() : 'N/A'}</div>
+                    <div class="stats-detail">📅 ${attempt.completedAt?.toDate ? new Date(attempt.completedAt.toDate()).toLocaleString() : 'N/A'}</div>
                 </div>
             `;
         }
@@ -282,84 +250,11 @@ async function loadStudentDetail(student) {
     contentDiv.innerHTML = html;
 }
 
-// Load all classes across all teachers
-async function loadAllClasses() {
-    const listDiv = document.getElementById('allClassesList');
-    if (!listDiv) return;
-    
-    listDiv.innerHTML = '<div class="loading">Loading classes...</div>';
-    
-    try {
-        const classesRef = collection(db, 'classes');
-        const snapshot = await getDocs(classesRef);
-        
-        if (snapshot.empty) {
-            listDiv.innerHTML = '<p>No classes created yet.</p>';
-            return;
-        }
-        
-        let html = '';
-        for (const docSnap of snapshot.docs) {
-            const classData = docSnap.data();
-            // Get teacher name
-            let teacherName = 'Unknown';
-            if (classData.teacherId) {
-                const teacherDoc = await getDoc(doc(db, 'teachers', classData.teacherId));
-                if (teacherDoc.exists) {
-                    teacherName = teacherDoc.data().displayName || teacherDoc.data().email;
-                }
-            }
-            const students = await loadClassStudents(docSnap.id);
-            
-            html += `
-                <div class="class-card" onclick="window.viewAllClass('${docSnap.id}')">
-                    <h3>📖 ${escapeHtml(classData.name)}</h3>
-                    <div>${escapeHtml(classData.description || 'No description')}</div>
-                    <div class="stats">
-                        <span>👨‍🏫 Teacher: ${escapeHtml(teacherName)}</span>
-                        <span>👥 ${students.length} students</span>
-                        <span>📅 Created: ${classData.createdAt?.toDate ? new Date(classData.createdAt.toDate()).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    <button class="delete-btn" onclick="event.stopPropagation(); window.deleteClass('${docSnap.id}')">Delete</button>
-                </div>
-            `;
-        }
-        listDiv.innerHTML = html;
-    } catch (error) {
-        console.error('Error loading classes:', error);
-        listDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-    }
-}
-
 // Delete teacher
 window.deleteTeacher = async (teacherId) => {
     if (!confirm('Remove this teacher? This will delete all their classes and data.')) return;
     await removeTeacher(teacherId);
     loadTeachersList();
-    loadAllClasses(); // Refresh classes list too
-};
-
-// Delete class
-window.deleteClass = async (classId) => {
-    if (!confirm('Delete this class? This will delete all lessons and student enrollments.')) return;
-    try {
-        await deleteDoc(doc(db, 'classes', classId));
-        showToast('Class deleted successfully', 'success');
-        loadAllClasses();
-        loadTeachersList(); // Refresh teachers list too
-    } catch (error) {
-        console.error('Error deleting class:', error);
-        showToast('Failed to delete class', 'error');
-    }
-};
-
-// View class from All Classes view
-window.viewAllClass = async (classId) => {
-    const classRef = doc(db, 'classes', classId);
-    const classDoc = await getDoc(classRef);
-    if (classDoc.exists) {
-        showClassDetailView({ id: classDoc.id, ...classDoc.data() });
-    }
 };
 
 // Make functions globally available for onclick handlers
@@ -431,7 +326,6 @@ function showToast(message, type) {
         animation: fadeInOut 3s ease forwards;
     `;
     
-    // Add animation styles if not present
     if (!document.getElementById('toastStyles')) {
         const style = document.createElement('style');
         style.id = 'toastStyles';
