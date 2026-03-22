@@ -1,13 +1,22 @@
 // super-admin/modules/teachers.js
-// Teacher management
+// Teacher management with Auth account creation
 
-import { db, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, getDoc, setDoc } from './auth.js';
+import { db, collection, getDocs, addDoc, query, where, doc, deleteDoc, setDoc, getDoc } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
 export function generateTeacherCode() {
     return TEACHER_CODE_PREFIX + generateRandomCode(6);
+}
+
+function generateTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return password + '@1'; // Add special character and number
 }
 
 export async function loadTeachers() {
@@ -23,9 +32,10 @@ export async function loadTeachers() {
 
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
+    const tempPassword = generateTempPassword();
     
     try {
-        // Check if teacher exists
+        // Check if teacher already exists in Firestore
         const teachersRef = collection(db, 'teachers');
         const q = query(teachersRef, where('email', '==', email));
         const existing = await getDocs(q);
@@ -35,17 +45,42 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Add teacher
+        // Create Firebase Auth user
+        const auth = firebase.auth();
+        let userCredential;
+        
+        try {
+            userCredential = await auth.createUserWithEmailAndPassword(email, tempPassword);
+        } catch (authError) {
+            if (authError.code === 'auth/email-already-in-use') {
+                // Email already exists in Auth, get the user
+                const user = await auth.fetchSignInMethodsForEmail(email);
+                if (user.length > 0) {
+                    // User exists, we'll just add them to Firestore
+                    showToast('Email already registered. Adding to Firestore only.', 'info');
+                    userCredential = { user: { uid: null, email: email } };
+                } else {
+                    throw authError;
+                }
+            } else {
+                throw authError;
+            }
+        }
+        
+        const uid = userCredential.user?.uid || email; // Use email as ID if no UID
+        
+        // Add teacher to Firestore
         await addDoc(collection(db, 'teachers'), {
             email: email,
             displayName: displayName || email.split('@')[0],
             teacherCode: teacherCode,
             createdAt: new Date(),
             isActive: true,
-            classes: []
+            classes: [],
+            authUid: uid || null
         });
         
-        // Also store in superAdmin settings
+        // Also store in superAdmin settings for validation
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
@@ -62,7 +97,8 @@ export async function addTeacher(email, displayName) {
                 email: email,
                 displayName: displayName || email.split('@')[0],
                 createdAt: new Date(),
-                used: false
+                used: false,
+                tempPassword: tempPassword
             };
             
             await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
@@ -71,7 +107,7 @@ export async function addTeacher(email, displayName) {
             console.warn('Could not update superAdmin settings:', settingsError);
         }
         
-        showToast(`Teacher added! Code: ${teacherCode}`, 'success');
+        showToast(`Teacher added! Code: ${teacherCode}\nTemporary password: ${tempPassword}`, 'success');
         return true;
         
     } catch (error) {
