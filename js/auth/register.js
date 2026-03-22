@@ -130,8 +130,9 @@ function renderRegister() {
     });
 }
 
+// js/auth/register.js - Complete handleRegister function
+
 async function handleRegister() {
-    console.log('🔴 handleRegister called');
     const fullName = document.getElementById('fullName')?.value;
     const email = document.getElementById('email')?.value;
     const username = document.getElementById('username')?.value;
@@ -170,40 +171,69 @@ async function handleRegister() {
     
     try {
         const registerBtn = document.querySelector('.auth-btn');
-        registerBtn.textContent = 'Checking username...';
+        registerBtn.textContent = 'Checking...';
         registerBtn.disabled = true;
         
         const db = getDb();
         const auth = getAuth();
         
         // Check if username already exists
-        const snapshot = await db.collection('users').where('username', '==', username).get();
+        const usernameSnapshot = await db.collection('users').where('username', '==', username).get();
         
-        if (!snapshot.empty) {
+        if (!usernameSnapshot.empty) {
             showInlineMessage('username', 'Username already taken. Please choose another.');
             registerBtn.textContent = 'Create Account';
             registerBtn.disabled = false;
             return;
         }
         
-        registerBtn.textContent = 'Creating account...';
+        // Check if email is already a teacher
+        const teacherCheck = await db.collection('teachers').where('email', '==', email).get();
+        if (!teacherCheck.empty) {
+            showInlineMessage('email', 'This email is registered as a teacher. Please use teacher login.', 'error');
+            registerBtn.textContent = 'Create Account';
+            registerBtn.disabled = false;
+            return;
+        }
         
-        // STEP 1: Create user in Firebase Auth
-        console.log('Creating user with email:', email);
+        // Check if email already in students
+        const studentCheck = await db.collection('users').where('email', '==', email).get();
+        if (!studentCheck.empty) {
+            showInlineMessage('email', 'Email already registered. Please login.', 'error');
+            registerBtn.textContent = 'Create Account';
+            registerBtn.disabled = false;
+            return;
+        }
+        
+        // If teacher code was provided, validate it
+        let teacherId = null;
+        if (teacherCode) {
+            const teacherQuery = await db.collection('teachers').where('teacherCode', '==', teacherCode.toUpperCase()).get();
+            
+            if (teacherQuery.empty) {
+                showInlineMessage('teacherCode', 'Invalid teacher code. Please check with your teacher.', 'error');
+                registerBtn.textContent = 'Create Account';
+                registerBtn.disabled = false;
+                return;
+            }
+            
+            const teacherData = teacherQuery.docs[0].data();
+            teacherId = teacherQuery.docs[0].id;
+        }
+        
+        registerBtn.textContent = 'Creating Account...';
+        
+        // Create Firebase Auth user
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
-        console.log('User created:', user.uid);
         
-        // STEP 2: Update profile
         await user.updateProfile({ displayName: fullName });
-        console.log('Profile updated');
         
-        // STEP 3: Set persistence
         await auth.setPersistence(
             rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
         );
         
-        // STEP 4: Create user document in Firestore
+        // Create user document in Firestore
         const userData = {
             uid: user.uid,
             username: username,
@@ -215,31 +245,22 @@ async function handleRegister() {
             overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 }
         };
         
-        if (teacherCode) {
-            userData.teacherCode = teacherCode;
+        // Add teacher code if provided
+        if (teacherCode && teacherId) {
+            userData.teacherCode = teacherCode.toUpperCase();
+            userData.teacherId = teacherId;
             userData.teacherCodeProvidedAt = firebase.firestore.FieldValue.serverTimestamp();
         }
         
-        console.log('Writing to Firestore...');
         await db.collection('users').doc(user.uid).set(userData);
-        console.log('Firestore write complete');
         
         showToast('Account created successfully!', 'success');
         
-        // Force a small delay to ensure auth state propagates
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
     } catch (error) {
         console.error('Registration error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
         
         if (error.code === 'auth/email-already-in-use') {
             showInlineMessage('email', 'Email already registered. Please use a different email or login.');
-        } else if (error.code === 'auth/weak-password') {
-            showInlineMessage('password', 'Password is too weak. Use at least 6 characters.');
-        } else if (error.code === 'auth/invalid-email') {
-            showInlineMessage('email', 'Invalid email address.');
         } else {
             showToast('Registration failed: ' + error.message, 'error');
         }

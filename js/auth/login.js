@@ -56,22 +56,18 @@ function renderLogin() {
 
 
 
+// js/auth/login.js - Updated handleLogin
+
 async function handleLogin() {
-    const email = document.getElementById('email')?.value;
+    const username = document.getElementById('username')?.value;
     const password = document.getElementById('password')?.value;
     const rememberMe = document.getElementById('rememberMe')?.checked;
     
     clearInlineMessages();
     
-    if (!email || !password) {
-        if (!email) showInlineMessage('email', 'Please enter your email');
-        if (!password) showInlineMessage('password', 'Please enter your password');
-        return;
-    }
-    
-    // Email validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showInlineMessage('email', 'Please enter a valid email address');
+    if (!username || !password) {
+        if (!username) showInlineMessage('username', 'Please enter username');
+        if (!password) showInlineMessage('password', 'Please enter password');
         return;
     }
     
@@ -80,15 +76,25 @@ async function handleLogin() {
         loginBtn.textContent = 'Logging in...';
         loginBtn.disabled = true;
         
-        // Make sure Firebase is initialized
-        const { initFirebase, getAuth } = await import('../firebase/firebaseInit.js');
-        await initFirebase();
-        const auth = getAuth();
+        const email = `${username}@mathriyaz.local`;
+        const { auth, initFirebase } = getAuth();
         
-        if (!auth) {
-            throw new Error('Auth not initialized');
+        // Wait for Firebase to be ready
+        await initFirebase();
+        
+        // FIRST: Check if this email exists in students collection BEFORE login
+        const db = getDb();
+        const userQuery = await db.collection('users').where('email', '==', email).get();
+        
+        if (userQuery.empty) {
+            // Not a student account
+            showToast('This account is not registered as a student. Please use the teacher dashboard.', 'error');
+            loginBtn.textContent = 'Login';
+            loginBtn.disabled = false;
+            return;
         }
         
+        // If it is a student, proceed with login
         await auth.setPersistence(
             rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
         );
@@ -100,13 +106,11 @@ async function handleLogin() {
         console.error('Login error:', error);
         
         if (error.code === 'auth/user-not-found') {
-            showInlineMessage('email', 'No account found with this email');
+            showInlineMessage('username', 'Username not found');
         } else if (error.code === 'auth/wrong-password') {
             showInlineMessage('password', 'Incorrect password');
         } else if (error.code === 'auth/invalid-email') {
-            showInlineMessage('email', 'Invalid email format');
-        } else if (error.code === 'auth/too-many-requests') {
-            showInlineMessage('email', 'Too many failed attempts. Please try again later.');
+            showInlineMessage('username', 'Invalid username format');
         } else {
             showToast(error.message, 'error');
         }
@@ -116,6 +120,7 @@ async function handleLogin() {
         loginBtn.disabled = false;
     }
 }
+
 
 // Function for forgot username (now uses email instead)
 function renderForgotUsername() {
