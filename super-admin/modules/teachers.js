@@ -1,7 +1,7 @@
 // super-admin/modules/teachers.js
 // Teacher management
 
-import { db, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc } from './auth.js';
+import { db, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, getDoc, setDoc } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
