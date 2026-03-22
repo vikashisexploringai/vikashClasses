@@ -19,8 +19,6 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Set database to vikashclasses
-db.settings({ databaseId: 'vikashclasses' });
 
 // Super Admin email
 const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
