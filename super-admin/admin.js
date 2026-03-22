@@ -87,7 +87,12 @@ function showTeachersView() {
 }
 
 function showTeacherDetailView(teacher) {
+    console.log('showTeacherDetailView called with:', teacher);
     currentTeacher = teacher;
+    const teacherNameElement = document.getElementById('teacherName');
+    const nameToShow = teacher.displayName || teacher.email;
+    console.log('Setting teacher name to:', nameToShow);
+    teacherNameElement.textContent = nameToShow;
     document.getElementById('teacherName').textContent = teacher.displayName || teacher.email;
     document.getElementById('teachersView').style.display = 'none';
     document.getElementById('teacherDetailView').style.display = 'block';
@@ -261,6 +266,9 @@ window.deleteTeacher = async (teacherId) => {
 window.viewTeacher = async (teacherId) => {
     const teachers = await loadTeachers();
     const teacher = teachers.find(t => t.id === teacherId);
+    console.log('Teacher object:', teacher);
+    console.log('Teacher name:', teacher.displayName);
+    console.log('Teacher email:', teacher.email);
     if (teacher) showTeacherDetailView(teacher);
 };
 
