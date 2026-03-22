@@ -27,6 +27,9 @@ const dashboard = document.getElementById('dashboard');
 const logoutBtn = document.getElementById('logoutBtn');
 const loginBtn = document.getElementById('loginBtn');
 const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+const cancelResetBtn = document.getElementById('cancelResetBtn');
+const confirmResetBtn = document.getElementById('confirmResetBtn');
 const createClassBtn = document.getElementById('createClassBtn');
 const createClassModal = document.getElementById('createClassModal');
 const cancelCreateBtn = document.getElementById('cancelCreateBtn');
@@ -34,6 +37,19 @@ const confirmCreateBtn = document.getElementById('confirmCreateBtn');
 const classDetailModal = document.getElementById('classDetailModal');
 const closeModalBtn = document.getElementById('closeModalBtn');
 const generateNewCodeBtn = document.getElementById('generateNewCodeBtn');
+
+// Toast notification function
+function showToast(message, type) {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 3000);
+}
 
 // Auth state listener
 onAuthStateChanged(auth, async (user) => {
@@ -55,7 +71,7 @@ onAuthStateChanged(auth, async (user) => {
             
             loadClasses();
         } else {
-            alert('You are not registered as a teacher.');
+            showToast('You are not registered as a teacher.', 'error');
             signOut(auth);
             loginSection.style.display = 'block';
             dashboard.style.display = 'none';
@@ -70,33 +86,84 @@ onAuthStateChanged(auth, async (user) => {
 
 // Login
 loginBtn.addEventListener('click', async () => {
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     
     if (!email || !password) {
-        alert('Please enter email and password');
+        showToast('Please enter email and password', 'error');
         return;
     }
     
     try {
         await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-        alert('Login failed: ' + error.message);
+        if (error.code === 'auth/user-not-found') {
+            showToast('No account found with this email', 'error');
+        } else if (error.code === 'auth/wrong-password') {
+            showToast('Incorrect password', 'error');
+        } else {
+            showToast('Login failed: ' + error.message, 'error');
+        }
     }
 });
 
-// Forgot Password
-forgotPasswordLink.addEventListener('click', async () => {
-    const email = document.getElementById('email').value;
-    if (!email) {
-        alert('Please enter your email address');
+// Forgot Password - Show Modal
+forgotPasswordLink.addEventListener('click', () => {
+    forgotPasswordModal.style.display = 'flex';
+    document.getElementById('resetEmail').value = document.getElementById('email').value || '';
+    document.getElementById('resetTeacherCode').value = '';
+});
+
+// Cancel Reset Modal
+cancelResetBtn.addEventListener('click', () => {
+    forgotPasswordModal.style.display = 'none';
+});
+
+// Confirm Reset - Verify teacher code first
+confirmResetBtn.addEventListener('click', async () => {
+    const email = document.getElementById('resetEmail').value.trim();
+    const teacherCode = document.getElementById('resetTeacherCode').value.trim().toUpperCase();
+    
+    if (!email || !teacherCode) {
+        showToast('Please enter both email and teacher code', 'error');
         return;
     }
+    
+    confirmResetBtn.disabled = true;
+    confirmResetBtn.textContent = 'Verifying...';
+    
     try {
+        // Verify teacher code matches email
+        const q = query(collection(db, 'teachers'), where('teacherCode', '==', teacherCode));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            showToast('Invalid teacher code', 'error');
+            confirmResetBtn.disabled = false;
+            confirmResetBtn.textContent = 'Send Reset Email';
+            return;
+        }
+        
+        const teacherData = snapshot.docs[0].data();
+        
+        if (teacherData.email !== email) {
+            showToast('Teacher code does not match this email', 'error');
+            confirmResetBtn.disabled = false;
+            confirmResetBtn.textContent = 'Send Reset Email';
+            return;
+        }
+        
+        // Send password reset email
         await sendPasswordResetEmail(auth, email);
-        alert('Password reset email sent! Check your inbox (and spam folder).');
+        showToast('Password reset email sent! Check your inbox (and spam folder).', 'success');
+        forgotPasswordModal.style.display = 'none';
+        
     } catch (error) {
-        alert('Failed to send reset email: ' + error.message);
+        console.error('Password reset error:', error);
+        showToast('Failed to send reset email: ' + error.message, 'error');
+    } finally {
+        confirmResetBtn.disabled = false;
+        confirmResetBtn.textContent = 'Send Reset Email';
     }
 });
 
@@ -170,7 +237,7 @@ confirmCreateBtn.addEventListener('click', async () => {
     const description = document.getElementById('newClassDescription').value;
     
     if (!name) {
-        alert('Please enter a class name');
+        showToast('Please enter a class name', 'error');
         return;
     }
     
@@ -187,14 +254,14 @@ confirmCreateBtn.addEventListener('click', async () => {
             enrolledStudents: []
         });
         
-        alert(`Class "${name}" created! Enrollment code: ${enrollmentCode}`);
+        showToast(`Class "${name}" created! Enrollment code: ${enrollmentCode}`, 'success');
         createClassModal.style.display = 'none';
         document.getElementById('newClassName').value = '';
         document.getElementById('newClassDescription').value = '';
         loadClasses();
         
     } catch (error) {
-        alert('Failed to create class: ' + error.message);
+        showToast('Failed to create class: ' + error.message, 'error');
     }
 });
 
@@ -273,9 +340,9 @@ async function removeStudentFromClass(classId, studentId) {
         const classData = classDoc.data();
         const updatedStudents = (classData.enrolledStudents || []).filter(id => id !== studentId);
         await updateDoc(classRef, { enrolledStudents: updatedStudents });
-        alert('Student removed from class');
+        showToast('Student removed from class', 'success');
     } catch (error) {
-        alert('Failed to remove student: ' + error.message);
+        showToast('Failed to remove student: ' + error.message, 'error');
     }
 }
 
@@ -286,9 +353,9 @@ generateNewCodeBtn.addEventListener('click', async () => {
         const classRef = doc(db, 'classes', window.currentClassId);
         await updateDoc(classRef, { enrollmentCode: newCode });
         document.getElementById('modalClassCode').textContent = newCode;
-        alert(`New enrollment code generated: ${newCode}`);
+        showToast(`New enrollment code generated: ${newCode}`, 'success');
     } catch (error) {
-        alert('Failed to generate new code: ' + error.message);
+        showToast('Failed to generate new code: ' + error.message, 'error');
     }
 });
 
@@ -302,6 +369,9 @@ window.addEventListener('click', (e) => {
     }
     if (e.target === classDetailModal) {
         classDetailModal.style.display = 'none';
+    }
+    if (e.target === forgotPasswordModal) {
+        forgotPasswordModal.style.display = 'none';
     }
 });
 
