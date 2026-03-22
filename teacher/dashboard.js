@@ -211,8 +211,36 @@ confirmResetBtn.addEventListener('click', async () => {
 
 
 // Logout
+// Logout
 logoutBtn.addEventListener('click', async () => {
-    await signOut(auth);
+    try {
+        await signOut(auth);
+        
+        // Clear the login form fields
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        
+        // Remove autofill by adding a random attribute to form
+        const loginForm = document.getElementById('loginSection');
+        const randomName = 'autocomplete-' + Math.random().toString(36).substring(2, 8);
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        
+        // Temporarily disable autocomplete
+        emailInput.setAttribute('autocomplete', 'off');
+        passwordInput.setAttribute('autocomplete', 'off');
+        
+        // Add a random name to prevent browser matching
+        emailInput.setAttribute('name', randomName);
+        passwordInput.setAttribute('name', randomName + '-pwd');
+        
+        // Show logout confirmation
+        showToast('Logged out successfully', 'success');
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        showToast('Failed to logout', 'error');
+    }
 });
 
 // Load classes
