@@ -1,7 +1,7 @@
 // super-admin/modules/auth.js
-// Super Admin authentication (using compat SDK for auth)
+// Super Admin authentication
 
-// Firebase config - REPLACE WITH YOUR NEW PROJECT CONFIG
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
   authDomain: "vikash-classes-c98f8.firebaseapp.com",
@@ -71,5 +71,5 @@ export function getCurrentAdmin() {
     return currentAdmin;
 }
 
-// Export Firestore functions (compat style)
-export { db, auth, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc };
+// Export auth and db for use in other modules
+export { auth, db };

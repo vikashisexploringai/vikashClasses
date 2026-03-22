@@ -1,7 +1,7 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation
 
-import { db, auth, collection, getDocs, addDoc, query, where, doc, deleteDoc, setDoc, getDoc } from './auth.js';
+import { auth, db } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
@@ -20,12 +20,11 @@ function generateTempPassword() {
 }
 
 export async function loadTeachers() {
-    const teachersRef = collection(db, 'teachers');
-    const snapshot = await getDocs(teachersRef);
+    const snapshot = await db.collection('teachers').get();
     
     const teachers = [];
-    snapshot.forEach(docSnap => {
-        teachers.push({ id: docSnap.id, ...docSnap.data() });
+    snapshot.forEach(doc => {
+        teachers.push({ id: doc.id, ...doc.data() });
     });
     return teachers;
 }
@@ -36,23 +35,20 @@ export async function addTeacher(email, displayName) {
     
     try {
         // Check if teacher already exists in Firestore
-        const teachersRef = collection(db, 'teachers');
-        const q = query(teachersRef, where('email', '==', email));
-        const existing = await getDocs(q);
+        const existing = await db.collection('teachers').where('email', '==', email).get();
         
         if (!existing.empty) {
             showToast('Teacher already exists', 'error');
             return false;
         }
         
-        // Create Firebase Auth user using compat auth
+        // Create Firebase Auth user
         let userCredential;
         
         try {
             userCredential = await auth.createUserWithEmailAndPassword(email, tempPassword);
         } catch (authError) {
             if (authError.code === 'auth/email-already-in-use') {
-                // Email already exists in Auth, just add to Firestore
                 showToast('Email already registered. Adding to Firestore only.', 'info');
                 userCredential = { user: { uid: null, email: email } };
             } else {
@@ -63,11 +59,11 @@ export async function addTeacher(email, displayName) {
         const uid = userCredential.user?.uid || email;
         
         // Add teacher to Firestore
-        await addDoc(collection(db, 'teachers'), {
+        await db.collection('teachers').add({
             email: email,
             displayName: displayName || email.split('@')[0],
             teacherCode: teacherCode,
-            createdAt: new Date(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             isActive: true,
             classes: [],
             authUid: uid
@@ -75,15 +71,12 @@ export async function addTeacher(email, displayName) {
         
         // Also store in superAdmin settings for validation
         try {
-            const settingsRef = doc(db, 'superAdmin', 'settings');
-            const settingsDoc = await getDoc(settingsRef);
+            const settingsRef = db.collection('superAdmin').doc('settings');
+            const settingsDoc = await settingsRef.get();
             
             let teacherCodes = {};
             if (settingsDoc.exists) {
-                const data = settingsDoc.data();
-                if (data && data.teacherCodes) {
-                    teacherCodes = data.teacherCodes;
-                }
+                teacherCodes = settingsDoc.data().teacherCodes || {};
             }
             
             teacherCodes[teacherCode] = {
@@ -94,7 +87,7 @@ export async function addTeacher(email, displayName) {
                 tempPassword: tempPassword
             };
             
-            await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+            await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
             
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
@@ -112,21 +105,21 @@ export async function addTeacher(email, displayName) {
 
 export async function removeTeacher(teacherId) {
     try {
-        const teacherRef = doc(db, 'teachers', teacherId);
-        const teacherDoc = await getDoc(teacherRef);
+        const teacherRef = db.collection('teachers').doc(teacherId);
+        const teacherDoc = await teacherRef.get();
         const teacherData = teacherDoc.data();
         
-        await deleteDoc(teacherRef);
+        await teacherRef.delete();
         
         try {
-            const settingsRef = doc(db, 'superAdmin', 'settings');
-            const settingsDoc = await getDoc(settingsRef);
+            const settingsRef = db.collection('superAdmin').doc('settings');
+            const settingsDoc = await settingsRef.get();
             
             if (settingsDoc.exists) {
                 const teacherCodes = settingsDoc.data().teacherCodes || {};
                 if (teacherData?.teacherCode) {
                     delete teacherCodes[teacherData.teacherCode];
-                    await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+                    await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
                 }
             }
         } catch (settingsError) {
@@ -145,13 +138,11 @@ export async function removeTeacher(teacherId) {
 // Load all classes for a specific teacher
 export async function loadTeacherClasses(teacherId) {
     try {
-        const classesRef = collection(db, 'classes');
-        const q = query(classesRef, where('teacherId', '==', teacherId));
-        const snapshot = await getDocs(q);
+        const snapshot = await db.collection('classes').where('teacherId', '==', teacherId).get();
         
         const classes = [];
-        snapshot.forEach(docSnap => {
-            classes.push({ id: docSnap.id, ...docSnap.data() });
+        snapshot.forEach(doc => {
+            classes.push({ id: doc.id, ...doc.data() });
         });
         return classes;
     } catch (error) {
@@ -163,8 +154,7 @@ export async function loadTeacherClasses(teacherId) {
 // Load all students enrolled in a class
 export async function loadClassStudents(classId) {
     try {
-        const classRef = doc(db, 'classes', classId);
-        const classDoc = await getDoc(classRef);
+        const classDoc = await db.collection('classes').doc(classId).get();
         
         if (!classDoc.exists) return [];
         
@@ -173,8 +163,7 @@ export async function loadClassStudents(classId) {
         
         const students = [];
         for (const studentId of studentIds) {
-            const studentRef = doc(db, 'users', studentId);
-            const studentDoc = await getDoc(studentRef);
+            const studentDoc = await db.collection('users').doc(studentId).get();
             if (studentDoc.exists) {
                 students.push({ id: studentDoc.id, ...studentDoc.data() });
             }
@@ -189,8 +178,7 @@ export async function loadClassStudents(classId) {
 // Load student progress
 export async function loadStudentProgress(studentId) {
     try {
-        const userRef = doc(db, 'users', studentId);
-        const userDoc = await getDoc(userRef);
+        const userDoc = await db.collection('users').doc(studentId).get();
         
         if (userDoc.exists) {
             return userDoc.data().progress || { overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 } };
@@ -205,13 +193,11 @@ export async function loadStudentProgress(studentId) {
 // Get student quiz attempts
 export async function getStudentAttempts(studentId) {
     try {
-        const attemptsRef = collection(db, 'attempts');
-        const q = query(attemptsRef, where('userId', '==', studentId));
-        const snapshot = await getDocs(q);
+        const snapshot = await db.collection('attempts').where('userId', '==', studentId).get();
         
         const attempts = [];
-        snapshot.forEach(docSnap => {
-            attempts.push({ id: docSnap.id, ...docSnap.data() });
+        snapshot.forEach(doc => {
+            attempts.push({ id: doc.id, ...doc.data() });
         });
         return attempts.sort((a, b) => {
             if (!a.completedAt || !b.completedAt) return 0;
@@ -221,11 +207,4 @@ export async function getStudentAttempts(studentId) {
         console.error('Error loading student attempts:', error);
         return [];
     }
-}
-
-function escapeHtml(text) {
-    if (!text) return text;
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
