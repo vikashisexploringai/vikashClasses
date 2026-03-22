@@ -56,7 +56,7 @@ function handleAuthState(state, user) {
 // Add teacher button
 document.getElementById('addTeacherBtn')?.addEventListener('click', async () => {
     const email = document.getElementById('teacherEmail')?.value;
-    const name = document.getElementById('teacherName')?.value;
+    const name = document.getElementById('teacherFullName')?.value;
     
     if (!email) {
         alert('Please enter teacher email');
@@ -73,7 +73,7 @@ document.getElementById('addTeacherBtn')?.addEventListener('click', async () => 
     addBtn.disabled = false;
     
     document.getElementById('teacherEmail').value = '';
-    document.getElementById('teacherName').value = '';
+    document.getElementById('teacherFullName').value = '';
     loadTeachersList();
 });
 
@@ -87,17 +87,11 @@ function showTeachersView() {
 }
 
 function showTeacherDetailView(teacher) {
-    console.log('showTeacherDetailView called with:', teacher);
     currentTeacher = teacher;
-    const teacherNameElement = document.getElementById('teacherName');
-    console.log('teacherNameElement found:', teacherNameElement);
     const nameToShow = teacher.displayName || teacher.email || 'Unknown Teacher';
-    console.log('Setting teacher name to:', nameToShow);
+    const teacherNameElement = document.getElementById('teacherNameDisplay');
     if (teacherNameElement) {
         teacherNameElement.textContent = nameToShow;
-        console.log('After setting, textContent is:', teacherNameElement.textContent);
-    } else {
-        console.error('teacherName element NOT found!');
     }
     document.getElementById('teachersView').style.display = 'none';
     document.getElementById('teacherDetailView').style.display = 'block';
@@ -271,9 +265,6 @@ window.deleteTeacher = async (teacherId) => {
 window.viewTeacher = async (teacherId) => {
     const teachers = await loadTeachers();
     const teacher = teachers.find(t => t.id === teacherId);
-    console.log('Teacher object:', teacher);
-    console.log('Teacher name:', teacher.displayName);
-    console.log('Teacher email:', teacher.email);
     if (teacher) showTeacherDetailView(teacher);
 };
 

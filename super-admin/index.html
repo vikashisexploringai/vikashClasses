@@ -110,20 +110,19 @@
         }
         .btn-primary:hover { background: #2563eb; }
         
-       .teacher-card {
-    border: 1px solid #e2e8f0;
-    padding: 20px;
-    margin-bottom: 16px;
-    border-radius: 12px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.teacher-card:hover {
-    background: #f8fafc;
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
+        .teacher-card {
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            background: white;
+            transition: all 0.2s;
+        }
+        .teacher-card:hover {
+            background: #f8fafc;
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
         .teacher-name {
             font-size: 18px;
             font-weight: 600;
@@ -264,7 +263,7 @@
                     <h3 style="margin-bottom: 16px;">📝 Add New Teacher</h3>
                     <div class="form-row">
                         <input type="email" id="teacherEmail" placeholder="teacher@example.com">
-                        <input type="text" id="teacherName" placeholder="Full Name (optional)">
+                        <input type="text" id="teacherFullName" placeholder="Full Name (optional)">
                     </div>
                     <button id="addTeacherBtn" class="btn-primary">Generate Code & Add</button>
                 </div>
@@ -277,7 +276,7 @@
             <div id="teacherDetailView" style="display: none;">
                 <div class="ribbon ribbon-with-back">
                     <button id="backToTeachersBtn" class="ribbon-back">‹</button>
-                    <h2 id="teacherName">Teacher</h2>
+                    <h2 id="teacherNameDisplay">Teacher</h2>
                 </div>
                 <div id="teacherDetailContent"></div>
             </div>
