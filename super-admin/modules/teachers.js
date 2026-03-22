@@ -1,7 +1,7 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation
 
-import { db, collection, getDocs, addDoc, query, where, doc, deleteDoc, setDoc, getDoc } from './auth.js';
+import { db, auth, collection, getDocs, addDoc, query, where, doc, deleteDoc, setDoc, getDoc } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
@@ -16,7 +16,7 @@ function generateTempPassword() {
     for (let i = 0; i < 10; i++) {
         password += chars[Math.floor(Math.random() * chars.length)];
     }
-    return password + '@1'; // Add special character and number
+    return password + '@1';
 }
 
 export async function loadTeachers() {
@@ -45,29 +45,22 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Create Firebase Auth user
-        const auth = firebase.auth();
+        // Create Firebase Auth user using the imported auth
         let userCredential;
         
         try {
             userCredential = await auth.createUserWithEmailAndPassword(email, tempPassword);
         } catch (authError) {
             if (authError.code === 'auth/email-already-in-use') {
-                // Email already exists in Auth, get the user
-                const user = await auth.fetchSignInMethodsForEmail(email);
-                if (user.length > 0) {
-                    // User exists, we'll just add them to Firestore
-                    showToast('Email already registered. Adding to Firestore only.', 'info');
-                    userCredential = { user: { uid: null, email: email } };
-                } else {
-                    throw authError;
-                }
+                // Email already exists in Auth, just add to Firestore
+                showToast('Email already registered. Adding to Firestore only.', 'info');
+                userCredential = { user: { uid: null, email: email } };
             } else {
                 throw authError;
             }
         }
         
-        const uid = userCredential.user?.uid || email; // Use email as ID if no UID
+        const uid = userCredential.user?.uid || email;
         
         // Add teacher to Firestore
         await addDoc(collection(db, 'teachers'), {
@@ -77,7 +70,7 @@ export async function addTeacher(email, displayName) {
             createdAt: new Date(),
             isActive: true,
             classes: [],
-            authUid: uid || null
+            authUid: uid
         });
         
         // Also store in superAdmin settings for validation
