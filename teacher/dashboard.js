@@ -52,37 +52,43 @@ function showToast(message, type) {
 }
 
 // Auth state listener
+// teacher/dashboard.js - Auth state listener
+
 onAuthStateChanged(auth, async (user) => {
     if (user) {
+        // Check if user exists in teachers collection
         const teacherQuery = query(collection(db, 'teachers'), where('email', '==', user.email));
         const teacherSnapshot = await getDocs(teacherQuery);
         
-        if (!teacherSnapshot.empty) {
-            currentTeacher = teacherSnapshot.docs[0].data();
-            currentTeacherId = teacherSnapshot.docs[0].id;
-            currentTeacher.id = currentTeacherId;
-            
-            loginSection.style.display = 'none';
-            dashboard.style.display = 'block';
-            logoutBtn.style.display = 'block';
-            
-            document.getElementById('teacherNameHeader').textContent = `Welcome, ${currentTeacher.displayName || currentTeacher.email}!`;
-            document.getElementById('teacherCodeDisplay').innerHTML = `📌 Your Teacher Code: <strong>${currentTeacher.teacherCode}</strong> (Share this with students)`;
-            
-            loadClasses();
-        } else {
-            showToast('You are not registered as a teacher.', 'error');
-            signOut(auth);
+        if (teacherSnapshot.empty) {
+            // User is not a teacher (might be student)
+            showToast('This account is not registered as a teacher. Please use the student app.', 'error');
+            await signOut(auth);
             loginSection.style.display = 'block';
             dashboard.style.display = 'none';
             logoutBtn.style.display = 'none';
+            return;
         }
+        
+        currentTeacher = teacherSnapshot.docs[0].data();
+        currentTeacherId = teacherSnapshot.docs[0].id;
+        currentTeacher.id = currentTeacherId;
+        
+        loginSection.style.display = 'none';
+        dashboard.style.display = 'block';
+        logoutBtn.style.display = 'block';
+        
+        document.getElementById('teacherNameHeader').textContent = `Welcome, ${currentTeacher.displayName || currentTeacher.email}!`;
+        document.getElementById('teacherCodeDisplay').innerHTML = `📌 Your Teacher Code: <strong>${currentTeacher.teacherCode}</strong> (Share this with students)`;
+        
+        loadClasses();
     } else {
         loginSection.style.display = 'block';
         dashboard.style.display = 'none';
         logoutBtn.style.display = 'none';
     }
 });
+
 
 // Login
 // Login

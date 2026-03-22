@@ -4,6 +4,9 @@
 import { getAuth, getDb, initFirebase } from '../firebase/firebaseInit.js';
 import { updateState, resetState } from '../core/state.js';
 import { showToast } from '../ui/toast.js';
+import { renderLogin } from './login.js';
+import { renderClassSelection } from '../views/classSelection.js';
+import { AppState } from '../core/state.js';
 
 let authStateListenerInitialized = false;
 
@@ -13,45 +16,56 @@ function setupAuthListener() {
     // Make sure Firebase is initialized
     initFirebase().then(() => {
         const auth = getAuth();
-        if (!auth) {
-            console.error('Auth not initialized');
+        const db = getDb();
+        
+        if (!auth || !db) {
+            console.error('Auth or DB not initialized');
             return;
         }
         
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 console.log('User signed in:', user.email);
-                updateState({
-                    currentUser: {
-                        uid: user.uid,
-                        email: user.email,
-                        displayName: user.displayName
+                
+                try {
+                    // Check if user exists in students collection (users)
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    
+                    if (!userDoc.exists) {
+                        // User is not a student (might be teacher)
+                        console.log('User not found in students collection, signing out');
+                        await auth.signOut();
+                        showToast('This account is not registered as a student. Please use the teacher dashboard.', 'error');
+                        renderLogin();
+                        return;
                     }
-                });
-                
-                await loadUserProgress(user.uid);
-                
-                // Navigate to class selection if on auth page
-                const currentView = window.AppState?.currentView || 'login';
-                const authViews = ['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'];
-                if (authViews.includes(currentView)) {
-                    // Dynamic import to avoid circular dependency
-                    import('../views/classSelection.js').then(module => {
-                        module.renderClassSelection();
+                    
+                    updateState({
+                        currentUser: {
+                            uid: user.uid,
+                            email: user.email,
+                            displayName: user.displayName,
+                            ...userDoc.data()
+                        }
                     });
+                    
+                    await loadUserProgress(user.uid);
+                    
+                    if (['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
+                        renderClassSelection();
+                    }
+                } catch (error) {
+                    console.error('Error checking user document:', error);
+                    await auth.signOut();
+                    showToast('Error validating account. Please try again.', 'error');
+                    renderLogin();
                 }
             } else {
                 console.log('User signed out');
                 resetState();
                 
-                // Navigate to login if not on auth page
-                const currentView = window.AppState?.currentView || 'login';
-                const authViews = ['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'];
-                if (!authViews.includes(currentView)) {
-                    // Dynamic import to avoid circular dependency
-                    import('./login.js').then(module => {
-                        module.renderLogin();
-                    });
+                if (!['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
+                    renderLogin();
                 }
             }
         });
