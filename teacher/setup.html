@@ -14,12 +14,17 @@
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
         input { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+        input:focus { outline: none; border-color: #3b82f6; }
+        input:read-only { background: #f8fafc; cursor: not-allowed; }
         .btn-primary { background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; width: 100%; font-size: 16px; }
         .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
         .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: center; }
         .success { color: #22c55e; background: #e6f7e6; padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: center; }
         .info { color: #3b82f6; background: #eff6ff; padding: 12px; border-radius: 8px; margin-bottom: 16px; text-align: center; font-size: 14px; }
-        .loading { text-align: center; padding: 40px; color: #666; }
+        .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+        .manual-link { text-align: center; margin-top: 16px; font-size: 13px; }
+        .manual-link a { color: #3b82f6; text-decoration: none; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -33,11 +38,13 @@
             <div id="setupForm">
                 <div class="form-group">
                     <label>Email Address</label>
-                    <input type="email" id="email" placeholder="teacher@example.com" readonly style="background: #f8fafc;">
+                    <input type="email" id="email" placeholder="teacher@example.com">
+                    <div class="hint">Enter the email your administrator used to add you</div>
                 </div>
                 <div class="form-group">
                     <label>Teacher Code</label>
-                    <input type="text" id="teacherCode" placeholder="TEACH-XXXXXX" readonly style="background: #f8fafc;">
+                    <input type="text" id="teacherCode" placeholder="TEACH-XXXXXX">
+                    <div class="hint">Your teacher code was provided by your administrator</div>
                 </div>
                 <div class="form-group">
                     <label>Create Password</label>
@@ -58,13 +65,14 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // Get email and code from URL parameters
+        // Get email and code from URL parameters if present
         const urlParams = new URLSearchParams(window.location.search);
-        const email = urlParams.get('email');
-        const code = urlParams.get('code');
+        const urlEmail = urlParams.get('email');
+        const urlCode = urlParams.get('code');
         
+        // Firebase config - REPLACE WITH YOUR NEW PROJECT API KEY
         const firebaseConfig = {
-            apiKey: "YOUR_NEW_API_KEY_HERE",  // Replace with your new project API key
+            apiKey: "YOUR_NEW_API_KEY_HERE",
             authDomain: "vikashclasses.firebaseapp.com",
             projectId: "vikashclasses",
             storageBucket: "vikashclasses.firebasestorage.app",
@@ -84,22 +92,22 @@
         const setupForm = document.getElementById('setupForm');
         const setupBtn = document.getElementById('setupBtn');
         
-        // Pre-fill email and code if present in URL
-        if (email) {
-            document.getElementById('email').value = email;
+        // Pre-fill from URL if present
+        if (urlEmail) {
+            document.getElementById('email').value = urlEmail;
         }
-        if (code) {
-            document.getElementById('teacherCode').value = code;
+        if (urlCode) {
+            document.getElementById('teacherCode').value = urlCode;
         }
         
         setupBtn.addEventListener('click', async () => {
-            const teacherEmail = document.getElementById('email').value;
-            const teacherCode = document.getElementById('teacherCode').value;
+            const teacherEmail = document.getElementById('email').value.trim();
+            const teacherCode = document.getElementById('teacherCode').value.trim().toUpperCase();
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             
             if (!teacherEmail || !teacherCode) {
-                showStatus('Missing email or teacher code', 'error');
+                showStatus('Please enter both email and teacher code', 'error');
                 return;
             }
             
@@ -128,7 +136,7 @@
                 const snapshot = await q.get();
                 
                 if (snapshot.empty) {
-                    showStatus('Invalid teacher code', 'error');
+                    showStatus('Invalid teacher code. Please check with your administrator.', 'error');
                     setupBtn.disabled = false;
                     setupBtn.textContent = 'Create Account & Set Password';
                     return;
@@ -138,14 +146,14 @@
                 const teacherData = teacherDoc.data();
                 
                 if (teacherData.email !== teacherEmail) {
-                    showStatus('Email does not match teacher record', 'error');
+                    showStatus('Email does not match the teacher record. Please enter the email your administrator used.', 'error');
                     setupBtn.disabled = false;
                     setupBtn.textContent = 'Create Account & Set Password';
                     return;
                 }
                 
                 if (teacherData.hasSetupPassword) {
-                    showStatus('Account already set up. Please login.', 'error');
+                    showStatus('Account already set up. Please login instead.', 'error');
                     setupBtn.disabled = false;
                     setupBtn.textContent = 'Create Account & Set Password';
                     return;
@@ -173,6 +181,10 @@
                 
                 if (error.code === 'auth/email-already-in-use') {
                     showStatus('This email already has an account. Please login instead.', 'error');
+                } else if (error.code === 'auth/invalid-email') {
+                    showStatus('Please enter a valid email address.', 'error');
+                } else if (error.code === 'auth/weak-password') {
+                    showStatus('Password is too weak. Use at least 6 characters.', 'error');
                 } else {
                     showStatus('Setup failed: ' + error.message, 'error');
                 }
@@ -194,7 +206,6 @@
         // Check if already logged in
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                // Check if this user is a teacher
                 const snapshot = await db.collection('teachers').where('authUid', '==', user.uid).get();
                 if (!snapshot.empty) {
                     window.location.href = 'index.html';
