@@ -2,7 +2,7 @@
 // Teacher Dashboard
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut, fetchSignInMethodsForEmail } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, query, where, getDocs, addDoc, doc, updateDoc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 const firebaseConfig = {
