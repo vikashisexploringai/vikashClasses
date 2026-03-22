@@ -20,7 +20,7 @@ function renderLogin() {
     const html = `
         <div class="auth-container">
             <div class="auth-card">
-                <h2>Login to vikashClasses</h2>
+                <h2>Login to Vikash Classes</h2>
                 
                 <div class="form-group">
                     <label for="email">Email Address</label>
