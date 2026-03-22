@@ -1,9 +1,5 @@
 // super-admin/modules/auth.js
-// Super Admin authentication
-
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+// Super Admin authentication (using compat SDK for auth)
 
 // Firebase config - REPLACE WITH YOUR NEW PROJECT CONFIG
 const firebaseConfig = {
@@ -15,12 +11,18 @@ const firebaseConfig = {
   appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Initialize Firebase (compat style)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
-// Super Admin email (your Google account)
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Set database to vikashclasses
+db.settings({ databaseId: 'vikashclasses' });
+
+// Super Admin email
 const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
 
 let currentAdmin = null;
@@ -29,7 +31,7 @@ let authListener = null;
 export async function initSuperAdmin(onAuthChange) {
     if (authListener) return;
     
-    authListener = onAuthStateChanged(auth, async (user) => {
+    authListener = auth.onAuthStateChanged(async (user) => {
         if (user && user.email === SUPER_ADMIN_EMAIL) {
             // Check if user has superAdmin claim
             const token = await user.getIdTokenResult();
@@ -51,9 +53,9 @@ export async function initSuperAdmin(onAuthChange) {
 }
 
 export async function signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
+    const provider = new firebase.auth.GoogleAuthProvider();
     try {
-        const result = await signInWithPopup(auth, provider);
+        const result = await auth.signInWithPopup(provider);
         return { success: true, user: result.user };
     } catch (error) {
         console.error('Google sign-in error:', error);
@@ -69,5 +71,5 @@ export function getCurrentAdmin() {
     return currentAdmin;
 }
 
-// Export Firestore functions
+// Export Firestore functions (compat style)
 export { db, auth, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc };

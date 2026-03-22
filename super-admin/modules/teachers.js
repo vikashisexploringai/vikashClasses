@@ -45,7 +45,7 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Create Firebase Auth user using the imported auth
+        // Create Firebase Auth user using compat auth
         let userCredential;
         
         try {
