@@ -1,360 +1,306 @@
-// super-admin/admin.js
-// Super Admin Dashboard
-
-import { initSuperAdmin, logout } from './modules/auth.js';
-import { 
-    loadTeachers, 
-    loadTeacherClasses, 
-    loadClassStudents, 
-    loadStudentProgress, 
-    getStudentAttempts,
-    addTeacher,
-    removeTeacher
-} from './modules/teachers.js';
-import { db, doc, getDoc, deleteDoc, collection, getDocs } from './modules/auth.js';
-
-let currentTeacher = null;
-let currentClass = null;
-let currentStudent = null;
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    await initSuperAdmin(handleAuthState);
-});
-
-function handleAuthState(state, user) {
-    const authSection = document.getElementById('authSection');
-    const adminPanel = document.getElementById('adminPanel');
-    const logoutBtn = document.getElementById('logoutBtn');
-    
-    if (state === 'authenticated') {
-        authSection.style.display = 'none';
-        adminPanel.style.display = 'block';
-        logoutBtn.style.display = 'block';
-        showTeachersView();
-    } else if (state === 'unauthorized') {
-        authSection.innerHTML = `
-            <div class="error">⚠️ You are not authorized as Super Admin.</div>
-            <button id="googleLoginBtn" class="logout-btn" style="background: #3b82f6;">Sign in with Google</button>
-        `;
-        document.getElementById('googleLoginBtn')?.addEventListener('click', async () => {
-            const { signInWithGoogle } = await import('./modules/auth.js');
-            await signInWithGoogle();
-        });
-        adminPanel.style.display = 'none';
-        logoutBtn.style.display = 'none';
-    } else {
-        authSection.style.display = 'block';
-        adminPanel.style.display = 'none';
-        logoutBtn.style.display = 'none';
-        document.getElementById('googleLoginBtn')?.addEventListener('click', async () => {
-            const { signInWithGoogle } = await import('./modules/auth.js');
-            await signInWithGoogle();
-        });
-    }
-}
-
-// ==================== NAVIGATION ====================
-function showTeachersView() {
-    document.getElementById('teachersView').style.display = 'block';
-    document.getElementById('teacherDetailView').style.display = 'none';
-    document.getElementById('classDetailView').style.display = 'none';
-    document.getElementById('studentDetailView').style.display = 'none';
-    loadTeachersList();
-}
-
-function showTeacherDetailView(teacher) {
-    currentTeacher = teacher;
-    document.getElementById('teacherName').textContent = teacher.displayName || teacher.email;
-    document.getElementById('teachersView').style.display = 'none';
-    document.getElementById('teacherDetailView').style.display = 'block';
-    document.getElementById('classDetailView').style.display = 'none';
-    document.getElementById('studentDetailView').style.display = 'none';
-    loadTeacherDetail(teacher);
-}
-
-function showClassDetailView(classItem) {
-    currentClass = classItem;
-    document.getElementById('className').textContent = classItem.name;
-    document.getElementById('teacherDetailView').style.display = 'none';
-    document.getElementById('classDetailView').style.display = 'block';
-    document.getElementById('studentDetailView').style.display = 'none';
-    loadClassDetail(classItem);
-}
-
-function showStudentDetailView(student) {
-    currentStudent = student;
-    document.getElementById('studentName').textContent = student.displayName || student.username;
-    document.getElementById('classDetailView').style.display = 'none';
-    document.getElementById('studentDetailView').style.display = 'block';
-    loadStudentDetail(student);
-}
-
-// ==================== TEACHERS LIST ====================
-async function loadTeachersList() {
-    const listDiv = document.getElementById('teachersList');
-    if (!listDiv) return;
-    
-    listDiv.innerHTML = '<div class="loading">Loading teachers...</div>';
-    
-    const teachers = await loadTeachers();
-    
-    if (teachers.length === 0) {
-        listDiv.innerHTML = '<p>No teachers added yet.</p>';
-        return;
-    }
-    
-    let html = '';
-    for (const teacher of teachers) {
-        const classes = await loadTeacherClasses(teacher.id);
-        html += `
-            <div class="teacher-card">
-                <div class="teacher-name">${escapeHtml(teacher.displayName || teacher.email)}</div>
-                <div class="teacher-email">${escapeHtml(teacher.email)}</div>
-                <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
-                <div class="stats">📚 ${classes.length} classes</div>
-                <div class="button-group">
-                    <button class="view-btn" onclick="window.viewTeacher('${teacher.id}')">View Classes</button>
-                    <button class="delete-btn" onclick="window.deleteTeacher('${teacher.id}')">Remove</button>
-                </div>
-            </div>
-        `;
-    }
-    listDiv.innerHTML = html;
-}
-
-// ==================== TEACHER DETAIL (CLASSES) ====================
-async function loadTeacherDetail(teacher) {
-    const contentDiv = document.getElementById('teacherDetailContent');
-    contentDiv.innerHTML = '<div class="loading">Loading classes...</div>';
-    
-    const classes = await loadTeacherClasses(teacher.id);
-    
-    if (classes.length === 0) {
-        contentDiv.innerHTML = '<p>No classes created yet.</p>';
-        return;
-    }
-    
-    let html = '';
-    for (const cls of classes) {
-        const students = await loadClassStudents(cls.id);
-        html += `
-            <div class="class-card" onclick="window.viewClass('${cls.id}')">
-                <div class="class-name">📖 ${escapeHtml(cls.name)}</div>
-                <div class="class-description">${escapeHtml(cls.description || 'No description')}</div>
-                <div class="stats-detail">
-                    <span>👥 ${students.length} students</span>
-                    <span>📅 Created: ${cls.createdAt?.toDate ? new Date(cls.createdAt.toDate()).toLocaleDateString() : 'N/A'}</span>
-                </div>
-            </div>
-        `;
-    }
-    contentDiv.innerHTML = html;
-}
-
-// ==================== CLASS DETAIL (STUDENTS) ====================
-async function loadClassDetail(classItem) {
-    const contentDiv = document.getElementById('classDetailContent');
-    contentDiv.innerHTML = '<div class="loading">Loading students...</div>';
-    
-    const students = await loadClassStudents(classItem.id);
-    
-    if (students.length === 0) {
-        contentDiv.innerHTML = '<p>No students enrolled yet.</p>';
-        return;
-    }
-    
-    let html = '';
-    for (const student of students) {
-        html += `
-            <div class="student-card" onclick="window.viewStudent('${student.id}')">
-                <div class="student-name">👤 ${escapeHtml(student.displayName || student.username)}</div>
-                <div class="student-username">@${escapeHtml(student.username)}</div>
-                <div class="stats-detail">
-                    <span>📧 ${escapeHtml(student.email)}</span>
-                    <span>📅 Enrolled: ${student.enrolledAt?.toDate ? new Date(student.enrolledAt.toDate()).toLocaleDateString() : 'N/A'}</span>
-                </div>
-                <div class="progress-preview">📊 Click to view progress & attempts</div>
-            </div>
-        `;
-    }
-    contentDiv.innerHTML = html;
-}
-
-// ==================== STUDENT DETAIL (PROGRESS) ====================
-async function loadStudentDetail(student) {
-    const contentDiv = document.getElementById('studentDetailContent');
-    contentDiv.innerHTML = '<div class="loading">Loading student data...</div>';
-    
-    const progress = await loadStudentProgress(student.id);
-    const attempts = await getStudentAttempts(student.id);
-    
-    const overall = progress.overall || { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 };
-    const avgAccuracy = overall.quizzesTaken > 0 
-        ? Math.round((overall.totalPoints / (overall.quizzesTaken * 100)) * 100) 
-        : 0;
-    
-    let html = `
-        <div class="card">
-            <h3>📊 Overall Statistics</h3>
-            <div class="stats-detail">
-                <div><strong>${overall.totalPoints}</strong> points</div>
-                <div><strong>${overall.quizzesTaken}</strong> quizzes</div>
-                <div><strong>${avgAccuracy}%</strong> accuracy</div>
-                <div><strong>${formatTime(overall.totalTimeSpent || 0)}</strong> total time</div>
-            </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin - vikashClasses</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        /* Card */
+        .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logout-btn { 
+            background: #ef4444; 
+            color: white; 
+            padding: 8px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 500; 
+        }
+        .logout-btn:hover { background: #dc2626; }
+        
+        /* Ribbon */
+        .ribbon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+            position: relative;
+        }
+        .ribbon-with-back {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .ribbon-back {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: background 0.2s;
+        }
+        .ribbon-back:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .ribbon h1, .ribbon h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        /* Form */
+        .form-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .form-row input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            width: 100%;
+        }
+        .btn-primary:hover { background: #2563eb; }
+        
+        /* Teacher Card */
+        .teacher-card { 
+            border: 1px solid #e2e8f0; 
+            padding: 20px; 
+            margin-bottom: 16px; 
+            border-radius: 12px; 
+            background: white;
+        }
+        .teacher-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .teacher-email {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .teacher-code { 
+            font-family: monospace; 
+            background: #f1f5f9; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .stats {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+        .view-btn {
+            background: white;
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .view-btn:hover {
+            background: #eff6ff;
+        }
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+        
+        /* Class Card (for teacher detail view) */
+        .class-card { 
+            border: 1px solid #e2e8f0; 
+            padding: 16px; 
+            margin-bottom: 12px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            background: white;
+        }
+        .class-card:hover { 
+            background: #f8fafc; 
+            transform: translateX(4px); 
+        }
+        .class-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .class-description {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        /* Student Card */
+        .student-card { 
+            border: 1px solid #e2e8f0; 
+            padding: 16px; 
+            margin-bottom: 12px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            background: white;
+        }
+        .student-card:hover { 
+            background: #f8fafc; 
+            transform: translateX(4px); 
+        }
+        .student-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .student-username {
+            color: #64748b;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        /* Utility */
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+        .success { color: #22c55e; background: #e6f7e6; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+        h3 { margin: 0 0 8px 0; font-size: 16px; }
+        .stats-detail { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #64748b; flex-wrap: wrap; }
+        .progress-preview { font-size: 12px; color: #3b82f6; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="logo">📚 Vikash Classes</div>
+            <button id="logoutBtn" class="logout-btn" style="display: none;">🚪 Logout</button>
         </div>
         
-        <h3 style="margin: 20px 0 12px 0;">📝 Recent Attempts</h3>
-    `;
-    
-    if (attempts.length === 0) {
-        html += '<p>No quiz attempts yet.</p>';
-    } else {
-        for (const attempt of attempts.slice(0, 10)) {
-            html += `
-                <div class="student-card" style="cursor: default;">
-                    <div><strong>${escapeHtml(attempt.lessonTitle || attempt.lessonId)}</strong></div>
-                    <div>Score: ${attempt.score}/${attempt.maxPossible} (${attempt.accuracy}%)</div>
-                    <div>${attempt.questionsCorrect}/${attempt.totalQuestions} correct</div>
-                    <div>⏱️ ${formatTime(attempt.timeSpent || 0)}</div>
-                    <div class="stats-detail">📅 ${attempt.completedAt?.toDate ? new Date(attempt.completedAt.toDate()).toLocaleString() : 'N/A'}</div>
+        <!-- Auth Section -->
+        <div id="authSection" class="card">
+            <h2>🔐 Admin Access Required</h2>
+            <p>Sign in with your Google account to access the dashboard.</p>
+            <button id="googleLoginBtn" class="logout-btn" style="background: #3b82f6;">Sign in with Google</button>
+        </div>
+        
+        <!-- Admin Panel -->
+        <div id="adminPanel" style="display: none;">
+            <!-- Teachers List View -->
+            <div id="teachersView">
+                <div class="ribbon">
+                    <h1>👩‍🏫 TEACHERS</h1>
                 </div>
-            `;
-        }
-    }
+                
+                <!-- Add Teacher Form -->
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">📝 Add New Teacher</h3>
+                    <div class="form-row">
+                        <input type="email" id="teacherEmail" placeholder="teacher@example.com">
+                        <input type="text" id="teacherName" placeholder="Full Name (optional)">
+                    </div>
+                    <button id="addTeacherBtn" class="btn-primary">Generate Code & Add</button>
+                </div>
+                
+                <!-- Teachers List -->
+                <div id="teachersList">Loading...</div>
+            </div>
+            
+            <!-- Teacher Detail View (Classes) - hidden by default -->
+            <div id="teacherDetailView" style="display: none;">
+                <div class="ribbon ribbon-with-back">
+                    <button id="backToTeachersBtn" class="ribbon-back">‹</button>
+                    <h2 id="teacherName">Teacher</h2>
+                </div>
+                <div id="teacherDetailContent"></div>
+            </div>
+            
+            <!-- Class Detail View (Students) - hidden by default -->
+            <div id="classDetailView" style="display: none;">
+                <div class="ribbon ribbon-with-back">
+                    <button id="backToTeacherBtn" class="ribbon-back">‹</button>
+                    <h2 id="className">Class</h2>
+                </div>
+                <div id="classDetailContent"></div>
+            </div>
+            
+            <!-- Student Detail View (Progress) - hidden by default -->
+            <div id="studentDetailView" style="display: none;">
+                <div class="ribbon ribbon-with-back">
+                    <button id="backToClassBtn" class="ribbon-back">‹</button>
+                    <h2 id="studentName">Student</h2>
+                </div>
+                <div id="studentDetailContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     
-    contentDiv.innerHTML = html;
-}
-
-// ==================== ACTIONS ====================
-window.viewTeacher = async (teacherId) => {
-    const teachers = await loadTeachers();
-    const teacher = teachers.find(t => t.id === teacherId);
-    if (teacher) showTeacherDetailView(teacher);
-};
-
-window.viewClass = async (classId) => {
-    const classes = await loadTeacherClasses(currentTeacher?.id);
-    const classItem = classes.find(c => c.id === classId);
-    if (classItem) showClassDetailView(classItem);
-};
-
-window.viewStudent = (studentId) => {
-    loadClassStudents(currentClass?.id).then(students => {
-        const student = students.find(s => s.id === studentId);
-        if (student) showStudentDetailView(student);
-    });
-};
-
-window.deleteTeacher = async (teacherId) => {
-    if (!confirm('Remove this teacher? This will delete all their classes and data.')) return;
-    await removeTeacher(teacherId);
-    loadTeachersList();
-};
-
-window.deleteClass = async (classId) => {
-    if (!confirm('Delete this class? This will delete all lessons and student enrollments.')) return;
-    try {
-        await deleteDoc(doc(db, 'classes', classId));
-        showToast('Class deleted successfully', 'success');
-        if (currentTeacher) {
-            loadTeacherDetail(currentTeacher);
-        }
-        loadTeachersList();
-    } catch (error) {
-        console.error('Error deleting class:', error);
-        showToast('Failed to delete class', 'error');
-    }
-};
-
-// ==================== BACK BUTTONS ====================
-document.getElementById('backToTeachersBtn')?.addEventListener('click', () => showTeachersView());
-document.getElementById('backToTeacherBtn')?.addEventListener('click', () => showTeacherDetailView(currentTeacher));
-document.getElementById('backToClassBtn')?.addEventListener('click', () => showClassDetailView(currentClass));
-
-// ==================== ADD TEACHER ====================
-document.getElementById('addTeacherBtn')?.addEventListener('click', async () => {
-    const email = document.getElementById('teacherEmail')?.value;
-    const name = document.getElementById('teacherName')?.value;
-    
-    if (!email) {
-        alert('Please enter teacher email');
-        return;
-    }
-    
-    const addBtn = document.getElementById('addTeacherBtn');
-    addBtn.textContent = 'Adding...';
-    addBtn.disabled = true;
-    
-    await addTeacher(email, name);
-    
-    addBtn.textContent = 'Generate Code & Add';
-    addBtn.disabled = false;
-    
-    document.getElementById('teacherEmail').value = '';
-    document.getElementById('teacherName').value = '';
-    loadTeachersList();
-});
-
-// ==================== LOGOUT ====================
-document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-    await logout();
-    location.reload();
-});
-
-// ==================== HELPER FUNCTIONS ====================
-function formatTime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m`;
-    } else {
-        return `${seconds}s`;
-    }
-}
-
-function escapeHtml(text) {
-    if (!text) return text;
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${type === 'error' ? '#ef4444' : '#22c55e'};
-        color: white;
-        padding: 12px 24px;
-        border-radius: 8px;
-        z-index: 1000;
-        font-size: 14px;
-        animation: fadeInOut 3s ease forwards;
-    `;
-    
-    if (!document.getElementById('toastStyles')) {
-        const style = document.createElement('style');
-        style.id = 'toastStyles';
-        style.textContent = `
-            @keyframes fadeInOut {
-                0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
-                10% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                90% { opacity: 1; transform: translateX(-50%) translateY(0); }
-                100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
