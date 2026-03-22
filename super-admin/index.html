@@ -3,31 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vikash Classes</title>
+    <title>Super Admin - vikashClasses</title>
     <style>
         * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
         body { background: #f5f5f5; margin: 0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
         .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; }
-        .logout-btn { background: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logout-btn { 
+            background: #ef4444; 
+            color: white; 
+            padding: 8px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 500; 
+        }
         .logout-btn:hover { background: #dc2626; }
         
-        /* Ribbon Header */
+        /* Ribbon Header - Centered */
         .ribbon {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 16px 24px;
             border-radius: 12px;
             margin-bottom: 24px;
+            text-align: center;
+            position: relative;
+        }
+        .ribbon-with-back {
             display: flex;
             align-items: center;
-            gap: 12px;
-        }
-        .ribbon h1, .ribbon h2 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 600;
+            justify-content: center;
+            position: relative;
         }
         .ribbon-back {
             background: none;
@@ -42,10 +67,19 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
             transition: background 0.2s;
         }
         .ribbon-back:hover {
             background: rgba(255,255,255,0.2);
+        }
+        .ribbon h1, .ribbon h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
         }
         
         .teacher-card, .class-card, .student-card { 
@@ -67,14 +101,6 @@
             border-radius: 4px; 
             font-size: 12px; 
         }
-        .badge { 
-            background: #3b82f6; 
-            color: white; 
-            padding: 2px 8px; 
-            border-radius: 20px; 
-            font-size: 12px; 
-            margin-left: 8px; 
-        }
         .loading { text-align: center; padding: 40px; color: #666; }
         .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
         h2 { margin-top: 0; margin-bottom: 16px; font-size: 18px; }
@@ -85,9 +111,10 @@
 </head>
 <body>
     <div class="container">
-        <!-- Logout button - only visible when logged in -->
-        <div class="header" id="logoutContainer" style="display: none;">
-            <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
+        <!-- Top Bar with Logo and Logout -->
+        <div class="top-bar">
+            <div class="logo">📚 Vikash Classes</div>
+            <button id="logoutBtn" class="logout-btn" style="display: none;">🚪 Logout</button>
         </div>
         
         <div id="authSection" class="card">
@@ -100,21 +127,15 @@
             <!-- Main View: Teachers List -->
             <div id="teachersView">
                 <div class="ribbon">
-                    <span>👑</span>
-                    <h1>Super Admin Dashboard</h1>
-                </div>
-                <div class="ribbon" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); margin-top: 0;">
-                    <span>👩‍🏫</span>
-                    <h2>Teachers</h2>
+                    <h1>👩‍🏫 Teachers</h1>
                 </div>
                 <div id="teachersList">Loading...</div>
             </div>
             
             <!-- Teacher Detail View (hidden by default) -->
             <div id="teacherDetailView" style="display: none;">
-                <div id="teacherRibbon" class="ribbon">
+                <div class="ribbon ribbon-with-back">
                     <button id="backToTeachersBtn" class="ribbon-back">‹</button>
-                    <span>👩‍🏫</span>
                     <h2 id="teacherName">Teacher</h2>
                 </div>
                 <div id="teacherDetailContent"></div>
@@ -122,9 +143,8 @@
             
             <!-- Class Detail View (hidden by default) -->
             <div id="classDetailView" style="display: none;">
-                <div id="classRibbon" class="ribbon">
+                <div class="ribbon ribbon-with-back">
                     <button id="backToTeacherBtn" class="ribbon-back">‹</button>
-                    <span>📚</span>
                     <h2 id="className">Class</h2>
                 </div>
                 <div id="classDetailContent"></div>
@@ -132,9 +152,8 @@
             
             <!-- Student Detail View (hidden by default) -->
             <div id="studentDetailView" style="display: none;">
-                <div id="studentRibbon" class="ribbon">
+                <div class="ribbon ribbon-with-back">
                     <button id="backToClassBtn" class="ribbon-back">‹</button>
-                    <span>👤</span>
                     <h2 id="studentName">Student</h2>
                 </div>
                 <div id="studentDetailContent"></div>
