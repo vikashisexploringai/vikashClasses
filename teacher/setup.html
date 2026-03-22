@@ -101,100 +101,102 @@
         }
         
         setupBtn.addEventListener('click', async () => {
-            const teacherEmail = document.getElementById('email').value.trim();
-            const teacherCode = document.getElementById('teacherCode').value.trim().toUpperCase();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            
-            if (!teacherEmail || !teacherCode) {
-                showStatus('Please enter both email and teacher code', 'error');
-                return;
+    const teacherEmail = document.getElementById('email').value.trim();
+    let teacherCode = document.getElementById('teacherCode').value.trim();
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (!teacherEmail || !teacherCode) {
+        showStatus('Please enter both email and teacher code', 'error');
+        return;
+    }
+    
+    teacherCode = teacherCode.toUpperCase();
+    
+    if (!password) {
+        showStatus('Please enter a password', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showStatus('Password must be at least 6 characters', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showStatus('Passwords do not match', 'error');
+        return;
+    }
+    
+    setupBtn.disabled = true;
+    setupBtn.textContent = 'Setting up...';
+    
+    try {
+        // Verify teacher code exists
+        const teachersRef = db.collection('teachers');
+        const q = teachersRef.where('teacherCode', '==', teacherCode);
+        const snapshot = await q.get();
+        
+        if (snapshot.empty) {
+            showStatus('Invalid teacher code', 'error');
+            setupBtn.disabled = false;
+            setupBtn.textContent = 'Create Account & Set Password';
+            return;
+        }
+        
+        const teacherDoc = snapshot.docs[0];
+        const teacherData = teacherDoc.data();
+        
+        if (teacherData.email !== teacherEmail) {
+            showStatus('Email does not match teacher record', 'error');
+            setupBtn.disabled = false;
+            setupBtn.textContent = 'Create Account & Set Password';
+            return;
+        }
+        
+        if (teacherData.hasSetupPassword) {
+            showStatus('Account already set up. Please login.', 'error');
+            setupBtn.disabled = false;
+            setupBtn.textContent = 'Create Account & Set Password';
+            return;
+        }
+        
+        // Try to create Auth account
+        let user = null;
+        try {
+            const userCredential = await auth.createUserWithEmailAndPassword(teacherEmail, password);
+            user = userCredential.user;
+        } catch (authError) {
+            if (authError.code === 'auth/email-already-in-use') {
+                // Account already exists, try to sign in
+                const userCredential = await auth.signInWithEmailAndPassword(teacherEmail, password);
+                user = userCredential.user;
+                showStatus('Account exists! Logged in successfully.', 'success');
+            } else {
+                throw authError;
             }
-            
-            if (!password) {
-                showStatus('Please enter a password', 'error');
-                return;
-            }
-            
-            if (password.length < 6) {
-                showStatus('Password must be at least 6 characters', 'error');
-                return;
-            }
-            
-            if (password !== confirmPassword) {
-                showStatus('Passwords do not match', 'error');
-                return;
-            }
-            
-            setupBtn.disabled = true;
-            setupBtn.textContent = 'Setting up...';
-            
-            try {
-                // Verify teacher code exists and matches email
-                const teachersRef = db.collection('teachers');
-                console.log('Looking for teacher code:', teacherCode);
-                console.log('Email:', teacherEmail);
-                const q = teachersRef.where('teacherCode', '==', teacherCode);
-                const snapshot = await q.get();
-                
-                if (snapshot.empty) {
-                    showStatus('Invalid teacher code. Please check with your administrator.', 'error');
-                    setupBtn.disabled = false;
-                    setupBtn.textContent = 'Create Account & Set Password';
-                    return;
-                }
-                
-                const teacherDoc = snapshot.docs[0];
-                const teacherData = teacherDoc.data();
-                
-                if (teacherData.email !== teacherEmail) {
-                    showStatus('Email does not match the teacher record. Please enter the email your administrator used.', 'error');
-                    setupBtn.disabled = false;
-                    setupBtn.textContent = 'Create Account & Set Password';
-                    return;
-                }
-                
-                if (teacherData.hasSetupPassword) {
-                    showStatus('Account already set up. Please login instead.', 'error');
-                    setupBtn.disabled = false;
-                    setupBtn.textContent = 'Create Account & Set Password';
-                    return;
-                }
-                
-                // Create Firebase Auth user
-                const userCredential = await auth.createUserWithEmailAndPassword(teacherEmail, password);
-                const user = userCredential.user;
-                
-                // Update teacher record with auth UID and mark as setup
-                await teacherDoc.ref.update({
-                    authUid: user.uid,
-                    hasSetupPassword: true,
-                    setupCompletedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                
-                showStatus('Account created successfully! Redirecting to dashboard...', 'success');
-                
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 2000);
-                
-            } catch (error) {
-                console.error('Setup error:', error);
-                
-                if (error.code === 'auth/email-already-in-use') {
-                    showStatus('This email already has an account. Please login instead.', 'error');
-                } else if (error.code === 'auth/invalid-email') {
-                    showStatus('Please enter a valid email address.', 'error');
-                } else if (error.code === 'auth/weak-password') {
-                    showStatus('Password is too weak. Use at least 6 characters.', 'error');
-                } else {
-                    showStatus('Setup failed: ' + error.message, 'error');
-                }
-                
-                setupBtn.disabled = false;
-                setupBtn.textContent = 'Create Account & Set Password';
-            }
+        }
+        
+        // Update teacher record
+        await teacherDoc.ref.update({
+            authUid: user.uid,
+            hasSetupPassword: true,
+            setupCompletedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        
+        showStatus('Account setup complete! Redirecting to dashboard...', 'success');
+        
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Setup error:', error);
+        showStatus('Setup failed: ' + error.message, 'error');
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Create Account & Set Password';
+    }
+});
         
         function showStatus(message, type) {
             statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
