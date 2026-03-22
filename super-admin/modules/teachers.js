@@ -74,17 +74,28 @@ export async function addTeacher(email, displayName) {
             classes: []
         });
         
-        // Also store in superAdmin settings
-        const settingsRef = doc(db, 'superAdmin', 'settings');
-        const settingsDoc = await getDoc(settingsRef);
-        const teacherCodes = settingsDoc.exists ? settingsDoc.data().teacherCodes || {} : {};
-        teacherCodes[teacherCode] = {
-            email: email,
-            displayName: displayName || email.split('@')[0],
-            createdAt: new Date(),
-            used: false
-        };
-        await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+        // Also store in superAdmin settings (create if doesn't exist)
+        try {
+            const settingsRef = doc(db, 'superAdmin', 'settings');
+            const settingsDoc = await getDoc(settingsRef);
+            
+            let teacherCodes = {};
+            if (settingsDoc.exists) {
+                teacherCodes = settingsDoc.data().teacherCodes || {};
+            }
+            
+            teacherCodes[teacherCode] = {
+                email: email,
+                displayName: displayName || email.split('@')[0],
+                createdAt: new Date(),
+                used: false
+            };
+            
+            await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+        } catch (settingsError) {
+            console.warn('Could not update superAdmin settings:', settingsError);
+            // Continue anyway - teacher was already added
+        }
         
         showToast(`Teacher added! Code: ${teacherCode}`, 'success');
         return true;
@@ -95,6 +106,7 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
+
 
 export async function generateNewTeacherCode(teacherId) {
     const newCode = generateTeacherCode();
