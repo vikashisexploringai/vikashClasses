@@ -70,4 +70,4 @@ export function getCurrentAdmin() {
 }
 
 // Export Firestore functions
-export { db, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc };
+export { db, auth, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc };
