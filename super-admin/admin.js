@@ -2,7 +2,7 @@
 // Main entry point for Super Admin
 
 import { initSuperAdmin, getCurrentAdmin, logout } from './modules/auth.js';
-import { loadTeachers, addTeacher, generateNewTeacherCode, removeTeacher } from './modules/teachers.js';
+import { loadTeachers, addTeacher, removeTeacher } from './modules/teachers.js';
 import { loadClasses, createClass, deleteClass } from './modules/classes.js';
 
 let currentTab = 'teachers';
@@ -131,11 +131,6 @@ function setupTabs() {
 window.adminLogout = async () => {
     await logout();
     location.reload();
-};
-
-window.generateNewCodeForTeacher = async (teacherId) => {
-    await generateNewTeacherCode(teacherId);
-    loadTeachers();
 };
 
 window.removeTeacherById = async (teacherId) => {

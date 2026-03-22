@@ -1,7 +1,7 @@
 // super-admin/modules/teachers.js
 // Teacher management
 
-import { db, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, getDoc, setDoc } from './auth.js';
+import { db, collection, getDocs, addDoc, query, where, doc, deleteDoc, setDoc, getDoc } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
@@ -33,11 +33,11 @@ export async function loadTeachers() {
                     <div class="teacher-info">
                         <strong>${escapeHtml(teacher.displayName || teacher.email)}</strong><br>
                         <small>${escapeHtml(teacher.email)}</small><br>
-                        <span class="teacher-code">Code: ${teacher.teacherCode}</span>
-                        <small> · Added: ${teacher.createdAt?.toDate ? new Date(teacher.createdAt.toDate()).toLocaleDateString() : 'N/A'}</small>
+                        <span class="teacher-code">📌 Teacher Code: <strong>${teacher.teacherCode}</strong></span>
+                        <small> · Share this code with students for registration</small><br>
+                        <small>📅 Added: ${teacher.createdAt?.toDate ? new Date(teacher.createdAt.toDate()).toLocaleDateString() : 'N/A'}</small>
                     </div>
                     <div>
-                        <button class="btn-warning" onclick="window.generateNewCodeForTeacher('${docSnap.id}')">New Code</button>
                         <button class="btn-danger" onclick="window.removeTeacherById('${docSnap.id}')">Remove</button>
                     </div>
                 </div>
@@ -74,14 +74,12 @@ export async function addTeacher(email, displayName) {
             classes: []
         });
         
-        // Also store in superAdmin settings (create if doesn't exist)
+        // Also store in superAdmin settings for validation
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
             
-            // Initialize teacherCodes as empty object if it doesn't exist
             let teacherCodes = {};
-            
             if (settingsDoc.exists) {
                 const data = settingsDoc.data();
                 if (data && data.teacherCodes) {
@@ -89,7 +87,6 @@ export async function addTeacher(email, displayName) {
                 }
             }
             
-            // Add the new code
             teacherCodes[teacherCode] = {
                 email: email,
                 displayName: displayName || email.split('@')[0],
@@ -97,12 +94,10 @@ export async function addTeacher(email, displayName) {
                 used: false
             };
             
-            // Save back to Firestore
             await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
             
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
-            // Continue anyway - teacher was already added
         }
         
         showToast(`Teacher added! Code: ${teacherCode}`, 'success');
@@ -115,27 +110,36 @@ export async function addTeacher(email, displayName) {
     }
 }
 
-
-export async function generateNewTeacherCode(teacherId) {
-    const newCode = generateTeacherCode();
-    try {
-        const teacherRef = doc(db, 'teachers', teacherId);
-        await updateDoc(teacherRef, { teacherCode: newCode });
-        showToast(`New code generated: ${newCode}`, 'success');
-        return true;
-    } catch (error) {
-        showToast('Failed to generate new code', 'error');
-        return false;
-    }
-}
-
 export async function removeTeacher(teacherId) {
     try {
+        // Get teacher to get their code
         const teacherRef = doc(db, 'teachers', teacherId);
+        const teacherDoc = await getDoc(teacherRef);
+        const teacherData = teacherDoc.data();
+        
+        // Remove from teachers collection
         await deleteDoc(teacherRef);
+        
+        // Remove from superAdmin settings
+        try {
+            const settingsRef = doc(db, 'superAdmin', 'settings');
+            const settingsDoc = await getDoc(settingsRef);
+            
+            if (settingsDoc.exists) {
+                const teacherCodes = settingsDoc.data().teacherCodes || {};
+                if (teacherData?.teacherCode) {
+                    delete teacherCodes[teacherData.teacherCode];
+                    await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+                }
+            }
+        } catch (settingsError) {
+            console.warn('Could not update superAdmin settings:', settingsError);
+        }
+        
         showToast('Teacher removed successfully', 'success');
         return true;
     } catch (error) {
+        console.error('Error removing teacher:', error);
         showToast('Failed to remove teacher', 'error');
         return false;
     }
