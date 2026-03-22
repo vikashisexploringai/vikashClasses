@@ -7,12 +7,12 @@ import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase
 
 // Firebase config - REPLACE WITH YOUR NEW PROJECT CONFIG
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "vikashclasses.firebaseapp.com",
-    projectId: "vikashclasses",
-    storageBucket: "vikashclasses.firebasestorage.app",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
+  authDomain: "vikash-classes-c98f8.firebaseapp.com",
+  projectId: "vikash-classes-c98f8",
+  storageBucket: "vikash-classes-c98f8.firebasestorage.app",
+  messagingSenderId: "456891384843",
+  appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
 };
 
 // Initialize Firebase
