@@ -29,9 +29,10 @@ export async function loadTeachers() {
     return teachers;
 }
 
+// super-admin/modules/teachers.js - updated addTeacher function
+
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
-    const tempPassword = generateTempPassword();
     
     try {
         // Check if teacher already exists in Firestore
@@ -42,34 +43,18 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Create Firebase Auth user
-        let userCredential;
-        
-        try {
-            userCredential = await auth.createUserWithEmailAndPassword(email, tempPassword);
-        } catch (authError) {
-            if (authError.code === 'auth/email-already-in-use') {
-                showToast('Email already registered. Adding to Firestore only.', 'info');
-                userCredential = { user: { uid: null, email: email } };
-            } else {
-                throw authError;
-            }
-        }
-        
-        const uid = userCredential.user?.uid || email;
-        
-        // Add teacher to Firestore
+        // Add teacher to Firestore (NO Auth account created yet)
         await db.collection('teachers').add({
             email: email,
             displayName: displayName || email.split('@')[0],
             teacherCode: teacherCode,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             isActive: true,
-            classes: [],
-            authUid: uid
+            hasSetupPassword: false,  // Flag to track if password is set
+            classes: []
         });
         
-        // Also store in superAdmin settings for validation
+        // Store in superAdmin settings
         try {
             const settingsRef = db.collection('superAdmin').doc('settings');
             const settingsDoc = await settingsRef.get();
@@ -83,8 +68,7 @@ export async function addTeacher(email, displayName) {
                 email: email,
                 displayName: displayName || email.split('@')[0],
                 createdAt: new Date(),
-                used: false,
-                tempPassword: tempPassword
+                used: false
             };
             
             await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
@@ -93,7 +77,7 @@ export async function addTeacher(email, displayName) {
             console.warn('Could not update superAdmin settings:', settingsError);
         }
         
-        showToast(`Teacher added! Code: ${teacherCode}\nTemporary password: ${tempPassword}`, 'success');
+        showToast(`Teacher added! Code: ${teacherCode}\n\nTeacher will receive a setup link.`, 'success');
         return true;
         
     } catch (error) {
@@ -102,6 +86,7 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
+
 
 export async function removeTeacher(teacherId) {
     try {
