@@ -86,6 +86,7 @@ onAuthStateChanged(auth, async (user) => {
 
 // Login
 // Login
+// Login
 loginBtn.addEventListener('click', async () => {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -95,29 +96,44 @@ loginBtn.addEventListener('click', async () => {
         return;
     }
     
+    // Basic email validation
+    if (!email.includes('@') || !email.includes('.')) {
+        showToast('Please enter a valid email address', 'error');
+        return;
+    }
+    
     try {
         await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
         console.error('Login error:', error.code);
         
-        switch (error.code) {
-            case 'auth/user-not-found':
-                showToast('No account found with this email address', 'error');
-                break;
-            case 'auth/wrong-password':
-                showToast('Incorrect password. Please try again.', 'error');
-                break;
-            case 'auth/invalid-email':
-                showToast('Please enter a valid email address', 'error');
-                break;
-            case 'auth/too-many-requests':
-                showToast('Too many failed attempts. Please try again later.', 'error');
-                break;
-            case 'auth/user-disabled':
-                showToast('This account has been disabled. Contact support.', 'error');
-                break;
-            default:
-                showToast('Login failed: ' + error.message, 'error');
+        // Handle the generic invalid-login-credentials error
+        if (error.code === 'auth/invalid-login-credentials') {
+            // Check if email exists by trying to fetch sign-in methods
+            try {
+                const methods = await fetchSignInMethodsForEmail(auth, email);
+                if (methods.length === 0) {
+                    showToast('No account found with this email address', 'error');
+                } else {
+                    showToast('Incorrect password. Please try again.', 'error');
+                }
+            } catch (fetchError) {
+                showToast('Invalid email or password', 'error');
+            }
+        } else {
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    showToast('Please enter a valid email address', 'error');
+                    break;
+                case 'auth/too-many-requests':
+                    showToast('Too many failed attempts. Please try again later.', 'error');
+                    break;
+                case 'auth/user-disabled':
+                    showToast('This account has been disabled. Contact support.', 'error');
+                    break;
+                default:
+                    showToast('Login failed: ' + error.message, 'error');
+            }
         }
     }
 });
