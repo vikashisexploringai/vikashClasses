@@ -4,81 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Admin - vikashClasses</title>
-    <link rel="stylesheet" href="admin.css">
     <style>
         * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
         body { background: #f5f5f5; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .btn-primary { background: #3b82f6; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
-        .btn-danger { background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
-        .btn-warning { background: #f59e0b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
-        .btn-secondary { background: #64748b; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; }
+        .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; }
+        .logout-btn { background: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+        .logout-btn:hover { background: #dc2626; }
+        .teacher-card, .class-card, .student-card { border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 12px; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .teacher-card:hover, .class-card:hover, .student-card:hover { background: #f8fafc; transform: translateX(4px); }
+        .teacher-code { font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge { background: #3b82f6; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; margin-left: 8px; }
+        .back-btn { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 14px; margin-bottom: 16px; display: inline-flex; align-items: center; gap: 4px; }
+        .back-btn:hover { text-decoration: underline; }
         .loading { text-align: center; padding: 40px; color: #666; }
         .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
-        .success { color: #22c55e; background: #e6f7e6; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
-        .tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
-        .tab-btn { padding: 10px 20px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 500; color: #64748b; border-radius: 8px; }
-        .tab-btn.active { background: #3b82f6; color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .teacher-card, .class-card { border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .teacher-info, .class-info { flex: 1; }
-        .teacher-code, .class-code { font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-        .form-row input, .form-row select { flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; }
+        h1 { margin: 0; font-size: 24px; }
         h2 { margin-top: 0; margin-bottom: 16px; font-size: 18px; }
-        h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; }
+        h3 { margin: 0 0 8px 0; font-size: 16px; }
+        .stats { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #64748b; }
+        .progress-preview { font-size: 12px; color: #3b82f6; margin-top: 8px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>👑 Super Admin Dashboard</h1>
-            <div id="userInfo"></div>
+            <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
         </div>
         
         <div id="authSection" class="card">
             <h2>🔐 Admin Access Required</h2>
             <p>Sign in with your Google account to access the dashboard.</p>
-            <button id="googleLoginBtn" class="btn-primary">Sign in with Google</button>
+            <button id="googleLoginBtn" class="logout-btn" style="background: #3b82f6;">Sign in with Google</button>
         </div>
         
         <div id="adminPanel" style="display: none;">
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="teachers">👩‍🏫 Teachers</button>
-                <button class="tab-btn" data-tab="classes">📚 Classes</button>
+            <!-- Main View: Teachers List -->
+            <div id="teachersView">
+                <h1>👩‍🏫 Teachers</h1>
+                <div id="teachersList">Loading...</div>
             </div>
             
-            <div id="tab-teachers" class="tab-content active">
-                <div class="card">
-                    <h2>➕ Add New Teacher</h2>
-                    <div class="form-row">
-                        <input type="email" id="teacherEmail" placeholder="teacher@example.com">
-                        <input type="text" id="teacherName" placeholder="Full Name (optional)">
-                        <button id="addTeacherBtn" class="btn-primary">Generate Code & Add</button>
-                    </div>
-                </div>
-                <div class="card">
-                    <h2>👩‍🏫 Teachers List</h2>
-                    <div id="teachersList">Loading...</div>
-                </div>
+            <!-- Teacher Detail View (hidden by default) -->
+            <div id="teacherDetailView" style="display: none;">
+                <button id="backToTeachersBtn" class="back-btn">← Back to Teachers</button>
+                <div id="teacherDetailContent"></div>
             </div>
             
-            <div id="tab-classes" class="tab-content">
-                <div class="card">
-                    <h2>➕ Create New Class</h2>
-                    <div class="form-row">
-                        <input type="text" id="className" placeholder="Class Name (e.g., Class 1)">
-                        <input type="text" id="classDescription" placeholder="Description">
-                        <button id="createClassBtn" class="btn-primary">Create Class</button>
-                    </div>
-                </div>
-                <div class="card">
-                    <h2>📚 Classes List</h2>
-                    <div id="classesList">Loading...</div>
-                </div>
+            <!-- Class Detail View (hidden by default) -->
+            <div id="classDetailView" style="display: none;">
+                <button id="backToTeacherBtn" class="back-btn">← Back to Teacher</button>
+                <div id="classDetailContent"></div>
+            </div>
+            
+            <!-- Student Detail View (hidden by default) -->
+            <div id="studentDetailView" style="display: none;">
+                <button id="backToClassBtn" class="back-btn">← Back to Class</button>
+                <div id="studentDetailContent"></div>
             </div>
         </div>
     </div>

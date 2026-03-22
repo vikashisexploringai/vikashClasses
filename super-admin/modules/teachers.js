@@ -1,153 +1,83 @@
-// super-admin/modules/teachers.js
-// Teacher management
+// Add these functions to teachers.js
 
-import { db, collection, getDocs, addDoc, query, where, doc, deleteDoc, setDoc, getDoc } from './auth.js';
-import { generateRandomCode, showToast } from './utils.js';
-
-const TEACHER_CODE_PREFIX = 'TEACH-';
-
-export function generateTeacherCode() {
-    return TEACHER_CODE_PREFIX + generateRandomCode(6);
-}
-
-export async function loadTeachers() {
-    const listDiv = document.getElementById('teachersList');
-    if (!listDiv) return;
-    
-    listDiv.innerHTML = '<div class="loading">Loading teachers...</div>';
-    
+// Load all classes for a specific teacher
+export async function loadTeacherClasses(teacherId) {
     try {
-        const teachersRef = collection(db, 'teachers');
-        const snapshot = await getDocs(teachersRef);
+        const classesRef = collection(db, 'classes');
+        const q = query(classesRef, where('teacherId', '==', teacherId));
+        const snapshot = await getDocs(q);
         
-        if (snapshot.empty) {
-            listDiv.innerHTML = '<p>No teachers added yet.</p>';
-            return;
-        }
-        
-        let html = '';
+        const classes = [];
         snapshot.forEach(docSnap => {
-            const teacher = docSnap.data();
-            html += `
-                <div class="teacher-card">
-                    <div class="teacher-info">
-                        <strong>${escapeHtml(teacher.displayName || teacher.email)}</strong><br>
-                        <small>${escapeHtml(teacher.email)}</small><br>
-                        <span class="teacher-code">📌 Teacher Code: <strong>${teacher.teacherCode}</strong></span>
-                        <small> · Share this code with students for registration</small><br>
-                        <small>📅 Added: ${teacher.createdAt?.toDate ? new Date(teacher.createdAt.toDate()).toLocaleDateString() : 'N/A'}</small>
-                    </div>
-                    <div>
-                        <button class="btn-danger" onclick="window.removeTeacherById('${docSnap.id}')">Remove</button>
-                    </div>
-                </div>
-            `;
+            classes.push({ id: docSnap.id, ...docSnap.data() });
         });
-        listDiv.innerHTML = html;
+        return classes;
     } catch (error) {
-        console.error('Error loading teachers:', error);
-        listDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        console.error('Error loading teacher classes:', error);
+        return [];
     }
 }
 
-export async function addTeacher(email, displayName) {
-    const teacherCode = generateTeacherCode();
-    
+// Load all students enrolled in a class
+export async function loadClassStudents(classId) {
     try {
-        // Check if teacher exists
-        const teachersRef = collection(db, 'teachers');
-        const q = query(teachersRef, where('email', '==', email));
-        const existing = await getDocs(q);
+        // Get the class document to find enrolled students
+        const classRef = doc(db, 'classes', classId);
+        const classDoc = await getDoc(classRef);
         
-        if (!existing.empty) {
-            showToast('Teacher already exists', 'error');
-            return false;
+        if (!classDoc.exists) return [];
+        
+        const classData = classDoc.data();
+        const studentIds = classData.enrolledStudents || [];
+        
+        const students = [];
+        for (const studentId of studentIds) {
+            const studentRef = doc(db, 'users', studentId);
+            const studentDoc = await getDoc(studentRef);
+            if (studentDoc.exists) {
+                students.push({ id: studentDoc.id, ...studentDoc.data() });
+            }
         }
+        return students;
+    } catch (error) {
+        console.error('Error loading class students:', error);
+        return [];
+    }
+}
+
+// Load student progress
+export async function loadStudentProgress(studentId) {
+    try {
+        const userRef = doc(db, 'users', studentId);
+        const userDoc = await getDoc(userRef);
         
-        // Add teacher
-        await addDoc(collection(db, 'teachers'), {
-            email: email,
-            displayName: displayName || email.split('@')[0],
-            teacherCode: teacherCode,
-            createdAt: new Date(),
-            isActive: true,
-            classes: []
+        if (userDoc.exists) {
+            return userDoc.data().progress || { overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 } };
+        }
+        return { overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 } };
+    } catch (error) {
+        console.error('Error loading student progress:', error);
+        return { overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 } };
+    }
+}
+
+// Get student quiz attempts
+export async function getStudentAttempts(studentId) {
+    try {
+        const attemptsRef = collection(db, 'attempts');
+        const q = query(attemptsRef, where('userId', '==', studentId));
+        const snapshot = await getDocs(q);
+        
+        const attempts = [];
+        snapshot.forEach(docSnap => {
+            attempts.push({ id: docSnap.id, ...docSnap.data() });
         });
-        
-        // Also store in superAdmin settings for validation
-        try {
-            const settingsRef = doc(db, 'superAdmin', 'settings');
-            const settingsDoc = await getDoc(settingsRef);
-            
-            let teacherCodes = {};
-            if (settingsDoc.exists) {
-                const data = settingsDoc.data();
-                if (data && data.teacherCodes) {
-                    teacherCodes = data.teacherCodes;
-                }
-            }
-            
-            teacherCodes[teacherCode] = {
-                email: email,
-                displayName: displayName || email.split('@')[0],
-                createdAt: new Date(),
-                used: false
-            };
-            
-            await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
-            
-        } catch (settingsError) {
-            console.warn('Could not update superAdmin settings:', settingsError);
-        }
-        
-        showToast(`Teacher added! Code: ${teacherCode}`, 'success');
-        return true;
-        
+        return attempts.sort((a, b) => {
+            if (!a.completedAt || !b.completedAt) return 0;
+            return b.completedAt.toDate() - a.completedAt.toDate();
+        });
     } catch (error) {
-        console.error('Error adding teacher:', error);
-        showToast('Failed to add teacher: ' + error.message, 'error');
-        return false;
+        console.error('Error loading student attempts:', error);
+        return [];
     }
-}
-
-export async function removeTeacher(teacherId) {
-    try {
-        // Get teacher to get their code
-        const teacherRef = doc(db, 'teachers', teacherId);
-        const teacherDoc = await getDoc(teacherRef);
-        const teacherData = teacherDoc.data();
-        
-        // Remove from teachers collection
-        await deleteDoc(teacherRef);
-        
-        // Remove from superAdmin settings
-        try {
-            const settingsRef = doc(db, 'superAdmin', 'settings');
-            const settingsDoc = await getDoc(settingsRef);
-            
-            if (settingsDoc.exists) {
-                const teacherCodes = settingsDoc.data().teacherCodes || {};
-                if (teacherData?.teacherCode) {
-                    delete teacherCodes[teacherData.teacherCode];
-                    await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
-                }
-            }
-        } catch (settingsError) {
-            console.warn('Could not update superAdmin settings:', settingsError);
-        }
-        
-        showToast('Teacher removed successfully', 'success');
-        return true;
-    } catch (error) {
-        console.error('Error removing teacher:', error);
-        showToast('Failed to remove teacher', 'error');
-        return false;
-    }
-}
-
-function escapeHtml(text) {
-    if (!text) return text;
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
 }
