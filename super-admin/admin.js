@@ -161,16 +161,17 @@ async function loadTeachersList() {
     for (const teacher of teachers) {
         const classes = await loadTeacherClasses(teacher.id);
         html += `
-            <div class="teacher-card" onclick="window.viewTeacher('${teacher.id}')">
-                <h3>${escapeHtml(teacher.displayName || teacher.email)}</h3>
-                <div>${escapeHtml(teacher.email)}</div>
-                <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
-                <div class="stats">
-                    <span>📚 ${classes.length} classes</span>
-                </div>
-                <button class="delete-btn" onclick="event.stopPropagation(); window.deleteTeacher('${teacher.id}')">Remove</button>
-            </div>
-        `;
+    <div class="teacher-card" onclick="window.viewTeacher('${teacher.id}')">
+        <div class="teacher-name">${escapeHtml(teacher.displayName || teacher.email)}</div>
+        <div class="teacher-email">${escapeHtml(teacher.email)}</div>
+        <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
+        <div class="stats">📚 ${classes.length} classes</div>
+        <div class="button-group">
+            <button class="view-btn" onclick="event.stopPropagation(); window.viewTeacher('${teacher.id}')">View Classes</button>
+            <button class="delete-btn" onclick="event.stopPropagation(); window.deleteTeacher('${teacher.id}')">Remove</button>
+        </div>
+    </div>
+`;
     }
     listDiv.innerHTML = html;
 }

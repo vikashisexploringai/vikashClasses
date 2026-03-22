@@ -110,14 +110,20 @@
         }
         .btn-primary:hover { background: #2563eb; }
         
-        /* Teacher Card */
-        .teacher-card { 
-            border: 1px solid #e2e8f0; 
-            padding: 20px; 
-            margin-bottom: 16px; 
-            border-radius: 12px; 
-            background: white;
-        }
+       .teacher-card {
+    border: 1px solid #e2e8f0;
+    padding: 20px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.teacher-card:hover {
+    background: #f8fafc;
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
         .teacher-name {
             font-size: 18px;
             font-weight: 600;
