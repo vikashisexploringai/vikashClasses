@@ -2,7 +2,16 @@
 // Super Admin Dashboard - Teacher Oversight
 
 import { initSuperAdmin, logout } from './modules/auth.js';
-import { loadTeachers, loadTeacherClasses, loadClassStudents, loadStudentProgress, getStudentAttempts } from './modules/teachers.js';
+import { 
+    loadTeachers, 
+    loadTeacherClasses, 
+    loadClassStudents, 
+    loadStudentProgress, 
+    getStudentAttempts,
+    addTeacher,
+    removeTeacher
+} from './modules/teachers.js';
+import { db, collection, getDocs, doc, getDoc, deleteDoc } from './modules/auth.js';
 
 let currentTeacher = null;
 let currentClass = null;
@@ -22,7 +31,9 @@ function handleAuthState(state, user) {
         authSection.style.display = 'none';
         adminPanel.style.display = 'block';
         logoutBtn.style.display = 'block';
+        setupTabs();
         showTeachersView();
+        loadAllClasses(); // Preload classes for the Classes tab
     } else if (state === 'unauthorized') {
         authSection.innerHTML = `
             <div class="error">⚠️ You are not authorized as Super Admin.</div>
@@ -43,6 +54,57 @@ function handleAuthState(state, user) {
             await signInWithGoogle();
         });
     }
+}
+
+// Tab switching
+function setupTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabId = btn.dataset.tab;
+            
+            // Update active class on buttons
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Update active class on content
+            tabContents.forEach(content => content.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            
+            // Load data for the tab
+            if (tabId === 'teachers') {
+                loadTeachersList();
+            } else if (tabId === 'classes') {
+                loadAllClasses();
+            }
+        });
+    });
+    
+    // Add teacher button
+    document.getElementById('addTeacherBtn')?.addEventListener('click', async () => {
+        const email = document.getElementById('teacherEmail')?.value;
+        const name = document.getElementById('teacherName')?.value;
+        
+        if (!email) {
+            alert('Please enter teacher email');
+            return;
+        }
+        
+        const addBtn = document.getElementById('addTeacherBtn');
+        addBtn.textContent = 'Adding...';
+        addBtn.disabled = true;
+        
+        await addTeacher(email, name);
+        
+        addBtn.textContent = 'Generate Code & Add';
+        addBtn.disabled = false;
+        
+        document.getElementById('teacherEmail').value = '';
+        document.getElementById('teacherName').value = '';
+        loadTeachersList();
+    });
 }
 
 // Navigation functions
@@ -69,6 +131,7 @@ function showClassDetailView(classItem) {
     document.getElementById('className').textContent = classItem.name;
     document.getElementById('teacherDetailView').style.display = 'none';
     document.getElementById('classDetailView').style.display = 'block';
+    document.getElementById('studentDetailView').style.display = 'none';
     loadClassDetail(classItem);
 }
 
@@ -83,6 +146,8 @@ function showStudentDetailView(student) {
 // Load Teachers List
 async function loadTeachersList() {
     const listDiv = document.getElementById('teachersList');
+    if (!listDiv) return;
+    
     listDiv.innerHTML = '<div class="loading">Loading teachers...</div>';
     
     const teachers = await loadTeachers();
@@ -103,6 +168,7 @@ async function loadTeachersList() {
                 <div class="stats">
                     <span>📚 ${classes.length} classes</span>
                 </div>
+                <button class="delete-btn" onclick="event.stopPropagation(); window.deleteTeacher('${teacher.id}')">Remove</button>
             </div>
         `;
     }
@@ -215,25 +281,85 @@ async function loadStudentDetail(student) {
     contentDiv.innerHTML = html;
 }
 
-function formatTime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+// Load all classes across all teachers
+async function loadAllClasses() {
+    const listDiv = document.getElementById('allClassesList');
+    if (!listDiv) return;
     
-    if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-        return `${minutes}m`;
-    } else {
-        return `${seconds}s`;
+    listDiv.innerHTML = '<div class="loading">Loading classes...</div>';
+    
+    try {
+        const classesRef = collection(db, 'classes');
+        const snapshot = await getDocs(classesRef);
+        
+        if (snapshot.empty) {
+            listDiv.innerHTML = '<p>No classes created yet.</p>';
+            return;
+        }
+        
+        let html = '';
+        for (const docSnap of snapshot.docs) {
+            const classData = docSnap.data();
+            // Get teacher name
+            let teacherName = 'Unknown';
+            if (classData.teacherId) {
+                const teacherDoc = await getDoc(doc(db, 'teachers', classData.teacherId));
+                if (teacherDoc.exists) {
+                    teacherName = teacherDoc.data().displayName || teacherDoc.data().email;
+                }
+            }
+            const students = await loadClassStudents(docSnap.id);
+            
+            html += `
+                <div class="class-card" onclick="window.viewAllClass('${docSnap.id}')">
+                    <h3>📖 ${escapeHtml(classData.name)}</h3>
+                    <div>${escapeHtml(classData.description || 'No description')}</div>
+                    <div class="stats">
+                        <span>👨‍🏫 Teacher: ${escapeHtml(teacherName)}</span>
+                        <span>👥 ${students.length} students</span>
+                        <span>📅 Created: ${classData.createdAt?.toDate ? new Date(classData.createdAt.toDate()).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <button class="delete-btn" onclick="event.stopPropagation(); window.deleteClass('${docSnap.id}')">Delete</button>
+                </div>
+            `;
+        }
+        listDiv.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading classes:', error);
+        listDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
     }
 }
 
-function escapeHtml(text) {
-    if (!text) return text;
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+// Delete teacher
+window.deleteTeacher = async (teacherId) => {
+    if (!confirm('Remove this teacher? This will delete all their classes and data.')) return;
+    await removeTeacher(teacherId);
+    loadTeachersList();
+    loadAllClasses(); // Refresh classes list too
+};
+
+// Delete class
+window.deleteClass = async (classId) => {
+    if (!confirm('Delete this class? This will delete all lessons and student enrollments.')) return;
+    try {
+        await deleteDoc(doc(db, 'classes', classId));
+        showToast('Class deleted successfully', 'success');
+        loadAllClasses();
+        loadTeachersList(); // Refresh teachers list too
+    } catch (error) {
+        console.error('Error deleting class:', error);
+        showToast('Failed to delete class', 'error');
+    }
+};
+
+// View class from All Classes view
+window.viewAllClass = async (classId) => {
+    const classRef = doc(db, 'classes', classId);
+    const classDoc = await getDoc(classRef);
+    if (classDoc.exists) {
+        showClassDetailView({ id: classDoc.id, ...classDoc.data() });
+    }
+};
 
 // Make functions globally available for onclick handlers
 window.viewTeacher = async (teacherId) => {
@@ -265,3 +391,60 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await logout();
     location.reload();
 });
+
+// Helper functions
+function formatTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+        return `${minutes}m`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return text;
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: ${type === 'error' ? '#ef4444' : '#22c55e'};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        z-index: 1000;
+        font-size: 14px;
+        animation: fadeInOut 3s ease forwards;
+    `;
+    
+    // Add animation styles if not present
+    if (!document.getElementById('toastStyles')) {
+        const style = document.createElement('style');
+        style.id = 'toastStyles';
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+                10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+                100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
