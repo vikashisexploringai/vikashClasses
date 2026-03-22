@@ -79,11 +79,17 @@ export async function addTeacher(email, displayName) {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
             
+            // Initialize teacherCodes as empty object if it doesn't exist
             let teacherCodes = {};
+            
             if (settingsDoc.exists) {
-                teacherCodes = settingsDoc.data().teacherCodes || {};
+                const data = settingsDoc.data();
+                if (data && data.teacherCodes) {
+                    teacherCodes = data.teacherCodes;
+                }
             }
             
+            // Add the new code
             teacherCodes[teacherCode] = {
                 email: email,
                 displayName: displayName || email.split('@')[0],
@@ -91,7 +97,9 @@ export async function addTeacher(email, displayName) {
                 used: false
             };
             
+            // Save back to Firestore
             await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
+            
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
             // Continue anyway - teacher was already added
