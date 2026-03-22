@@ -90,10 +90,15 @@ function showTeacherDetailView(teacher) {
     console.log('showTeacherDetailView called with:', teacher);
     currentTeacher = teacher;
     const teacherNameElement = document.getElementById('teacherName');
-    const nameToShow = teacher.displayName || teacher.email;
+    console.log('teacherNameElement found:', teacherNameElement);
+    const nameToShow = teacher.displayName || teacher.email || 'Unknown Teacher';
     console.log('Setting teacher name to:', nameToShow);
-    teacherNameElement.textContent = nameToShow;
-    document.getElementById('teacherName').textContent = teacher.displayName || teacher.email;
+    if (teacherNameElement) {
+        teacherNameElement.textContent = nameToShow;
+        console.log('After setting, textContent is:', teacherNameElement.textContent);
+    } else {
+        console.error('teacherName element NOT found!');
+    }
     document.getElementById('teachersView').style.display = 'none';
     document.getElementById('teacherDetailView').style.display = 'block';
     document.getElementById('classDetailView').style.display = 'none';
