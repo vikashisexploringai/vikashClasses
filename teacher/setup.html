@@ -132,6 +132,8 @@
             try {
                 // Verify teacher code exists and matches email
                 const teachersRef = db.collection('teachers');
+                console.log('Looking for teacher code:', teacherCode);
+                console.log('Email:', teacherEmail);
                 const q = teachersRef.where('teacherCode', '==', teacherCode);
                 const snapshot = await q.get();
                 
