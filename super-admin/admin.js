@@ -16,10 +16,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 function handleAuthState(state, user) {
     const authSection = document.getElementById('authSection');
     const adminPanel = document.getElementById('adminPanel');
+    const logoutContainer = document.getElementById('logoutContainer');
     
     if (state === 'authenticated') {
         authSection.style.display = 'none';
         adminPanel.style.display = 'block';
+        logoutContainer.style.display = 'flex';
         showTeachersView();
     } else if (state === 'unauthorized') {
         authSection.innerHTML = `
@@ -31,9 +33,11 @@ function handleAuthState(state, user) {
             await signInWithGoogle();
         });
         adminPanel.style.display = 'none';
+        logoutContainer.style.display = 'none';
     } else {
         authSection.style.display = 'block';
         adminPanel.style.display = 'none';
+        logoutContainer.style.display = 'none';
         document.getElementById('googleLoginBtn')?.addEventListener('click', async () => {
             const { signInWithGoogle } = await import('./modules/auth.js');
             await signInWithGoogle();
@@ -52,6 +56,7 @@ function showTeachersView() {
 
 function showTeacherDetailView(teacher) {
     currentTeacher = teacher;
+    document.getElementById('teacherName').textContent = teacher.displayName || teacher.email;
     document.getElementById('teachersView').style.display = 'none';
     document.getElementById('teacherDetailView').style.display = 'block';
     document.getElementById('classDetailView').style.display = 'none';
@@ -61,6 +66,7 @@ function showTeacherDetailView(teacher) {
 
 function showClassDetailView(classItem) {
     currentClass = classItem;
+    document.getElementById('className').textContent = classItem.name;
     document.getElementById('teacherDetailView').style.display = 'none';
     document.getElementById('classDetailView').style.display = 'block';
     loadClassDetail(classItem);
@@ -68,6 +74,7 @@ function showClassDetailView(classItem) {
 
 function showStudentDetailView(student) {
     currentStudent = student;
+    document.getElementById('studentName').textContent = student.displayName || student.username;
     document.getElementById('classDetailView').style.display = 'none';
     document.getElementById('studentDetailView').style.display = 'block';
     loadStudentDetail(student);
@@ -87,7 +94,6 @@ async function loadTeachersList() {
     
     let html = '';
     for (const teacher of teachers) {
-        // Get class count
         const classes = await loadTeacherClasses(teacher.id);
         html += `
             <div class="teacher-card" onclick="window.viewTeacher('${teacher.id}')">
@@ -96,7 +102,6 @@ async function loadTeachersList() {
                 <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
                 <div class="stats">
                     <span>📚 ${classes.length} classes</span>
-                    <span>👥 Loading students...</span>
                 </div>
             </div>
         `;
@@ -111,20 +116,12 @@ async function loadTeacherDetail(teacher) {
     
     const classes = await loadTeacherClasses(teacher.id);
     
-    let html = `
-        <div class="card">
-            <h2>👩‍🏫 ${escapeHtml(teacher.displayName || teacher.email)}</h2>
-            <div>📧 ${escapeHtml(teacher.email)}</div>
-            <div class="teacher-code">📌 Teacher Code: ${teacher.teacherCode}</div>
-        </div>
-        <h2>📚 Classes (${classes.length})</h2>
-    `;
+    let html = '';
     
     if (classes.length === 0) {
-        html += '<p>No classes created yet.</p>';
+        html = '<p>No classes created yet.</p>';
     } else {
         for (const cls of classes) {
-            // Get student count for this class
             const students = await loadClassStudents(cls.id);
             html += `
                 <div class="class-card" onclick="window.viewClass('${cls.id}')">
@@ -149,16 +146,10 @@ async function loadClassDetail(classItem) {
     
     const students = await loadClassStudents(classItem.id);
     
-    let html = `
-        <div class="card">
-            <h2>📖 ${escapeHtml(classItem.name)}</h2>
-            <div>${escapeHtml(classItem.description || 'No description')}</div>
-        </div>
-        <h2>👥 Students (${students.length})</h2>
-    `;
+    let html = '';
     
     if (students.length === 0) {
-        html += '<p>No students enrolled yet.</p>';
+        html = '<p>No students enrolled yet.</p>';
     } else {
         for (const student of students) {
             html += `
@@ -192,13 +183,6 @@ async function loadStudentDetail(student) {
         : 0;
     
     let html = `
-        <div class="card">
-            <h2>👤 ${escapeHtml(student.displayName || student.username)}</h2>
-            <div>@${escapeHtml(student.username)}</div>
-            <div>📧 ${escapeHtml(student.email)}</div>
-            <div>📅 Member since: ${student.createdAt?.toDate ? new Date(student.createdAt.toDate()).toLocaleDateString() : 'N/A'}</div>
-        </div>
-        
         <div class="card">
             <h3>📊 Overall Statistics</h3>
             <div class="stats" style="flex-wrap: wrap;">
@@ -265,8 +249,6 @@ window.viewClass = async (classId) => {
 };
 
 window.viewStudent = (studentId) => {
-    // Student object already passed from class detail
-    // We need to get full student data
     loadClassStudents(currentClass?.id).then(students => {
         const student = students.find(s => s.id === studentId);
         if (student) showStudentDetailView(student);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Admin - vikashClasses</title>
+    <title>Vikash Classes</title>
     <style>
         * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
         body { background: #f5f5f5; margin: 0; padding: 20px; }
@@ -12,15 +12,71 @@
         .header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 24px; }
         .logout-btn { background: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
         .logout-btn:hover { background: #dc2626; }
-        .teacher-card, .class-card, .student-card { border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 12px; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
-        .teacher-card:hover, .class-card:hover, .student-card:hover { background: #f8fafc; transform: translateX(4px); }
-        .teacher-code { font-family: monospace; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .badge { background: #3b82f6; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; margin-left: 8px; }
-        .back-btn { background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 14px; margin-bottom: 16px; display: inline-flex; align-items: center; gap: 4px; }
-        .back-btn:hover { text-decoration: underline; }
+        
+        /* Ribbon Header */
+        .ribbon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .ribbon h1, .ribbon h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .ribbon-back {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        .ribbon-back:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .teacher-card, .class-card, .student-card { 
+            border: 1px solid #e2e8f0; 
+            padding: 16px; 
+            margin-bottom: 12px; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+        }
+        .teacher-card:hover, .class-card:hover, .student-card:hover { 
+            background: #f8fafc; 
+            transform: translateX(4px); 
+        }
+        .teacher-code { 
+            font-family: monospace; 
+            background: #f1f5f9; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+        }
+        .badge { 
+            background: #3b82f6; 
+            color: white; 
+            padding: 2px 8px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            margin-left: 8px; 
+        }
         .loading { text-align: center; padding: 40px; color: #666; }
         .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
-        h1 { margin: 0; font-size: 24px; }
         h2 { margin-top: 0; margin-bottom: 16px; font-size: 18px; }
         h3 { margin: 0 0 8px 0; font-size: 16px; }
         .stats { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; color: #64748b; }
@@ -29,7 +85,8 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <!-- Logout button - only visible when logged in -->
+        <div class="header" id="logoutContainer" style="display: none;">
             <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
         </div>
         
@@ -42,25 +99,44 @@
         <div id="adminPanel" style="display: none;">
             <!-- Main View: Teachers List -->
             <div id="teachersView">
-                <h1>👩‍🏫 Teachers</h1>
+                <div class="ribbon">
+                    <span>👑</span>
+                    <h1>Super Admin Dashboard</h1>
+                </div>
+                <div class="ribbon" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); margin-top: 0;">
+                    <span>👩‍🏫</span>
+                    <h2>Teachers</h2>
+                </div>
                 <div id="teachersList">Loading...</div>
             </div>
             
             <!-- Teacher Detail View (hidden by default) -->
             <div id="teacherDetailView" style="display: none;">
-                <button id="backToTeachersBtn" class="back-btn">← Back to Teachers</button>
+                <div id="teacherRibbon" class="ribbon">
+                    <button id="backToTeachersBtn" class="ribbon-back">‹</button>
+                    <span>👩‍🏫</span>
+                    <h2 id="teacherName">Teacher</h2>
+                </div>
                 <div id="teacherDetailContent"></div>
             </div>
             
             <!-- Class Detail View (hidden by default) -->
             <div id="classDetailView" style="display: none;">
-                <button id="backToTeacherBtn" class="back-btn">← Back to Teacher</button>
+                <div id="classRibbon" class="ribbon">
+                    <button id="backToTeacherBtn" class="ribbon-back">‹</button>
+                    <span>📚</span>
+                    <h2 id="className">Class</h2>
+                </div>
                 <div id="classDetailContent"></div>
             </div>
             
             <!-- Student Detail View (hidden by default) -->
             <div id="studentDetailView" style="display: none;">
-                <button id="backToClassBtn" class="back-btn">← Back to Class</button>
+                <div id="studentRibbon" class="ribbon">
+                    <button id="backToClassBtn" class="ribbon-back">‹</button>
+                    <span>👤</span>
+                    <h2 id="studentName">Student</h2>
+                </div>
                 <div id="studentDetailContent"></div>
             </div>
         </div>
