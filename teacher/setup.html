@@ -132,70 +132,80 @@
     setupBtn.textContent = 'Setting up...';
     
     try {
-        // Verify teacher code exists
-        const teachersRef = db.collection('teachers');
-        const q = teachersRef.where('teacherCode', '==', teacherCode);
-        const snapshot = await q.get();
-        
-        if (snapshot.empty) {
-            showStatus('Invalid teacher code', 'error');
-            setupBtn.disabled = false;
-            setupBtn.textContent = 'Create Account & Set Password';
-            return;
-        }
-        
-        const teacherDoc = snapshot.docs[0];
-        const teacherData = teacherDoc.data();
-        
-        if (teacherData.email !== teacherEmail) {
-            showStatus('Email does not match teacher record', 'error');
-            setupBtn.disabled = false;
-            setupBtn.textContent = 'Create Account & Set Password';
-            return;
-        }
-        
-        if (teacherData.hasSetupPassword) {
-            showStatus('Account already set up. Please login.', 'error');
-            setupBtn.disabled = false;
-            setupBtn.textContent = 'Create Account & Set Password';
-            return;
-        }
-        
-        // Try to create Auth account
-        let user = null;
-        try {
-            const userCredential = await auth.createUserWithEmailAndPassword(teacherEmail, password);
-            user = userCredential.user;
-        } catch (authError) {
-            if (authError.code === 'auth/email-already-in-use') {
-                // Account already exists, try to sign in
-                const userCredential = await auth.signInWithEmailAndPassword(teacherEmail, password);
-                user = userCredential.user;
-                showStatus('Account exists! Logged in successfully.', 'success');
-            } else {
-                throw authError;
-            }
-        }
-        
-        // Update teacher record
-        await teacherDoc.ref.update({
-            authUid: user.uid,
-            hasSetupPassword: true,
-            setupCompletedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus('Account setup complete! Redirecting to dashboard...', 'success');
-        
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 2000);
-        
-    } catch (error) {
-        console.error('Setup error:', error);
-        showStatus('Setup failed: ' + error.message, 'error');
+    // Verify teacher code exists
+    const teachersRef = db.collection('teachers');
+    const q = teachersRef.where('teacherCode', '==', teacherCode);
+    const snapshot = await q.get();
+    
+    if (snapshot.empty) {
+        showStatus('Invalid teacher code', 'error');
         setupBtn.disabled = false;
         setupBtn.textContent = 'Create Account & Set Password';
+        return;
     }
+    
+    const teacherDoc = snapshot.docs[0];
+    const teacherData = teacherDoc.data();
+    
+    if (teacherData.email !== teacherEmail) {
+        showStatus('Email does not match teacher record', 'error');
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Create Account & Set Password';
+        return;
+    }
+    
+    if (teacherData.hasSetupPassword) {
+        showStatus('Account already set up. Please login.', 'error');
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Create Account & Set Password';
+        return;
+    }
+    
+    let user = null;
+    
+    // First check if account exists
+    const signInMethods = await auth.fetchSignInMethodsForEmail(teacherEmail);
+    
+    if (signInMethods.length > 0) {
+        // Account exists, try to sign in
+        try {
+            const userCredential = await auth.signInWithEmailAndPassword(teacherEmail, password);
+            user = userCredential.user;
+            showStatus('Account exists! Logged in successfully.', 'success');
+        } catch (signInError) {
+            if (signInError.code === 'auth/wrong-password') {
+                showStatus('This email already has an account but the password is incorrect. Please use the "Forgot Password" option.', 'error');
+                setupBtn.disabled = false;
+                setupBtn.textContent = 'Create Account & Set Password';
+                return;
+            }
+            throw signInError;
+        }
+    } else {
+        // No account exists, create new
+        const userCredential = await auth.createUserWithEmailAndPassword(teacherEmail, password);
+        user = userCredential.user;
+    }
+    
+    // Update teacher record
+    await teacherDoc.ref.update({
+        authUid: user.uid,
+        hasSetupPassword: true,
+        setupCompletedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    showStatus('Account setup complete! Redirecting to dashboard...', 'success');
+    
+    setTimeout(() => {
+        window.location.href = 'index.html';
+    }, 2000);
+    
+} catch (error) {
+    console.error('Setup error:', error);
+    showStatus('Setup failed: ' + error.message, 'error');
+    setupBtn.disabled = false;
+    setupBtn.textContent = 'Create Account & Set Password';
+}
 });
         
         function showStatus(message, type) {
