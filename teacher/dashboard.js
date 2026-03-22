@@ -1,21 +1,19 @@
 // teacher/dashboard.js
 // Teacher Dashboard
 
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, query, where, getDocs, addDoc, doc, updateDoc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 
-// Firebase config (same as your project)
 const firebaseConfig = {
-  apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
-  authDomain: "vikash-classes-c98f8.firebaseapp.com",
-  projectId: "vikash-classes-c98f8",
-  storageBucket: "vikash-classes-c98f8.firebasestorage.app",
-  messagingSenderId: "456891384843",
-  appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
+    apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
+    authDomain: "vikash-classes-c98f8.firebaseapp.com",
+    projectId: "vikash-classes-c98f8",
+    storageBucket: "vikash-classes-c98f8.firebasestorage.app",
+    messagingSenderId: "456891384843",
+    appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -40,7 +38,6 @@ const generateNewCodeBtn = document.getElementById('generateNewCodeBtn');
 // Auth state listener
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        // Check if user is a teacher
         const teacherQuery = query(collection(db, 'teachers'), where('email', '==', user.email));
         const teacherSnapshot = await getDocs(teacherQuery);
         
@@ -49,20 +46,17 @@ onAuthStateChanged(auth, async (user) => {
             currentTeacherId = teacherSnapshot.docs[0].id;
             currentTeacher.id = currentTeacherId;
             
-            // Show dashboard
             loginSection.style.display = 'none';
             dashboard.style.display = 'block';
             logoutBtn.style.display = 'block';
             
-            // Display teacher info
             document.getElementById('teacherNameHeader').textContent = `Welcome, ${currentTeacher.displayName || currentTeacher.email}!`;
             document.getElementById('teacherCodeDisplay').innerHTML = `📌 Your Teacher Code: <strong>${currentTeacher.teacherCode}</strong> (Share this with students)`;
             
             loadClasses();
         } else {
-            // User is not a teacher
             alert('You are not registered as a teacher.');
-            await signOut(auth);
+            signOut(auth);
             loginSection.style.display = 'block';
             dashboard.style.display = 'none';
             logoutBtn.style.display = 'none';
@@ -100,7 +94,7 @@ forgotPasswordLink.addEventListener('click', async () => {
     }
     try {
         await sendPasswordResetEmail(auth, email);
-        alert('Password reset email sent! Check your inbox.');
+        alert('Password reset email sent! Check your inbox (and spam folder).');
     } catch (error) {
         alert('Failed to send reset email: ' + error.message);
     }
@@ -111,7 +105,7 @@ logoutBtn.addEventListener('click', async () => {
     await signOut(auth);
 });
 
-// Load classes for this teacher
+// Load classes
 async function loadClasses() {
     const classesList = document.getElementById('classesList');
     classesList.innerHTML = '<div class="loading">Loading classes...</div>';
@@ -131,11 +125,11 @@ async function loadClasses() {
             const students = await getClassStudents(docSnap.id);
             
             html += `
-                <div class="class-card" style="border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 12px; border-radius: 12px; cursor: pointer;" onclick="window.showClassDetail('${docSnap.id}', '${escapeHtml(classData.name)}', '${classData.enrollmentCode || 'N/A'}')">
-                    <div style="font-weight: 600; margin-bottom: 8px;">📖 ${escapeHtml(classData.name)}</div>
-                    <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">${escapeHtml(classData.description || 'No description')}</div>
-                    <div style="font-size: 13px; color: #3b82f6;">👥 ${students.length} students enrolled</div>
-                    <div style="font-size: 12px; color: #64748b; margin-top: 8px;">🔑 Code: ${classData.enrollmentCode || 'Not set'}</div>
+                <div class="class-card" onclick="window.showClassDetail('${docSnap.id}', '${escapeHtml(classData.name)}', '${classData.enrollmentCode || 'N/A'}')">
+                    <div class="class-name">📖 ${escapeHtml(classData.name)}</div>
+                    <div class="class-description">${escapeHtml(classData.description || 'No description')}</div>
+                    <div class="class-stats">👥 ${students.length} students enrolled</div>
+                    <div class="class-code">🔑 Code: ${classData.enrollmentCode || 'Not set'}</div>
                 </div>
             `;
         }
@@ -147,23 +141,20 @@ async function loadClasses() {
     }
 }
 
-// Get students in a class
 async function getClassStudents(classId) {
     try {
         const classRef = doc(db, 'classes', classId);
         const classDoc = await getDoc(classRef);
         if (!classDoc.exists) return [];
-        
         const classData = classDoc.data();
-        const studentIds = classData.enrolledStudents || [];
-        return studentIds;
+        return classData.enrolledStudents || [];
     } catch (error) {
         console.error('Error getting students:', error);
         return [];
     }
 }
 
-// Create new class
+// Create class
 createClassBtn.addEventListener('click', () => {
     createClassModal.style.display = 'flex';
 });
@@ -207,7 +198,6 @@ confirmCreateBtn.addEventListener('click', async () => {
     }
 });
 
-// Generate random code
 function generateRandomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -223,7 +213,6 @@ window.showClassDetail = async (classId, className, currentCode) => {
     document.getElementById('modalClassName').textContent = className;
     document.getElementById('modalClassCode').textContent = currentCode;
     
-    // Load students
     const studentsList = document.getElementById('modalStudentsList');
     studentsList.innerHTML = '<div class="loading">Loading students...</div>';
     
@@ -242,19 +231,18 @@ window.showClassDetail = async (classId, className, currentCode) => {
                 if (studentDoc.exists) {
                     const student = studentDoc.data();
                     html += `
-                        <div style="border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <div class="student-item">
                             <div>
-                                <div><strong>${escapeHtml(student.displayName || student.username)}</strong></div>
+                                <strong>${escapeHtml(student.displayName || student.username)}</strong>
                                 <div style="font-size: 12px; color: #64748b;">@${escapeHtml(student.username)} · ${escapeHtml(student.email)}</div>
                             </div>
-                            <button class="remove-student-btn" data-class-id="${classId}" data-student-id="${studentId}" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Remove</button>
+                            <button class="remove-student-btn" data-class-id="${classId}" data-student-id="${studentId}">Remove</button>
                         </div>
                     `;
                 }
             }
             studentsList.innerHTML = html;
             
-            // Add remove student handlers
             document.querySelectorAll('.remove-student-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
@@ -268,7 +256,6 @@ window.showClassDetail = async (classId, className, currentCode) => {
             });
         }
         
-        // Store classId for code generation
         window.currentClassId = classId;
         
     } catch (error) {
@@ -279,7 +266,6 @@ window.showClassDetail = async (classId, className, currentCode) => {
     classDetailModal.style.display = 'flex';
 };
 
-// Remove student from class
 async function removeStudentFromClass(classId, studentId) {
     try {
         const classRef = doc(db, 'classes', classId);
@@ -293,7 +279,6 @@ async function removeStudentFromClass(classId, studentId) {
     }
 }
 
-// Generate new enrollment code
 generateNewCodeBtn.addEventListener('click', async () => {
     if (!window.currentClassId) return;
     const newCode = generateRandomCode();
@@ -307,12 +292,10 @@ generateNewCodeBtn.addEventListener('click', async () => {
     }
 });
 
-// Close modal
 closeModalBtn.addEventListener('click', () => {
     classDetailModal.style.display = 'none';
 });
 
-// Close modal when clicking outside
 window.addEventListener('click', (e) => {
     if (e.target === createClassModal) {
         createClassModal.style.display = 'none';
@@ -328,6 +311,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-// Make function global for onclick
-window.showClassDetail = showClassDetail;

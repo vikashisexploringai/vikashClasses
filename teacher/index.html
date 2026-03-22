@@ -199,6 +199,16 @@
         .forgot-link { text-align: center; margin-top: 16px; }
         .forgot-link a { color: #3b82f6; text-decoration: none; cursor: pointer; }
         .forgot-link a:hover { text-decoration: underline; }
+        .info-box { 
+            background: #eff6ff; 
+            border: 1px solid #3b82f6; 
+            border-radius: 8px; 
+            padding: 12px; 
+            margin-bottom: 20px; 
+            text-align: center;
+            font-size: 14px;
+            color: #1e40af;
+        }
         h2 { margin-top: 0; margin-bottom: 24px; text-align: center; }
         h3 { margin: 0 0 16px 0; font-size: 18px; }
     </style>
@@ -214,6 +224,11 @@
         <!-- Login Section -->
         <div id="loginSection" class="card">
             <h2>👩‍🏫 Teacher Login</h2>
+            
+            <div class="info-box">
+                📌 <strong>New Teacher?</strong> After your administrator adds you, use the <strong>"Forgot Password"</strong> link below to set up your password.
+            </div>
+            
             <div class="form-group">
                 <label>Email Address</label>
                 <input type="email" id="email" placeholder="teacher@example.com">
@@ -225,11 +240,6 @@
             <button id="loginBtn" class="btn-primary">Login</button>
             <div class="forgot-link">
                 <a id="forgotPasswordLink">Forgot Password?</a>
-            </div>
-            <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
-                <a href="setup.html" style="color: #3b82f6; text-decoration: none; font-size: 14px;">
-                    🆕 New Teacher? Set up your account here
-                </a>
             </div>
         </div>
         
