@@ -1,7 +1,7 @@
 // super-admin/modules/classes.js
 // Class management
 
-import { db } from './auth.js';
+import { db, collection, getDocs, addDoc, doc, deleteDoc } from './auth.js';
 import { showToast } from './utils.js';
 
 export async function loadClasses() {
@@ -11,7 +11,8 @@ export async function loadClasses() {
     listDiv.innerHTML = '<div class="loading">Loading classes...</div>';
     
     try {
-        const snapshot = await db.collection('classes').get();
+        const classesRef = collection(db, 'classes');
+        const snapshot = await getDocs(classesRef);
         
         if (snapshot.empty) {
             listDiv.innerHTML = '<p>No classes created yet.</p>';
@@ -19,18 +20,18 @@ export async function loadClasses() {
         }
         
         let html = '';
-        snapshot.forEach(doc => {
-            const classData = doc.data();
+        snapshot.forEach(docSnap => {
+            const classData = docSnap.data();
             html += `
                 <div class="class-card">
                     <div class="class-info">
                         <strong>${escapeHtml(classData.name)}</strong><br>
                         <small>${escapeHtml(classData.description || 'No description')}</small><br>
-                        <span class="class-code">ID: ${doc.id}</span>
+                        <span class="class-code">ID: ${docSnap.id}</span>
                         <small> · Created: ${classData.createdAt?.toDate ? new Date(classData.createdAt.toDate()).toLocaleDateString() : 'N/A'}</small>
                     </div>
                     <div>
-                        <button class="btn-danger" onclick="window.deleteClassById('${doc.id}')">Delete</button>
+                        <button class="btn-danger" onclick="window.deleteClassById('${docSnap.id}')">Delete</button>
                     </div>
                 </div>
             `;
@@ -44,7 +45,7 @@ export async function loadClasses() {
 
 export async function createClass(name, description = '') {
     try {
-        await db.collection('classes').add({
+        await addDoc(collection(db, 'classes'), {
             name: name,
             description: description,
             createdAt: new Date(),
@@ -62,7 +63,8 @@ export async function createClass(name, description = '') {
 
 export async function deleteClass(classId) {
     try {
-        await db.collection('classes').doc(classId).delete();
+        const classRef = doc(db, 'classes', classId);
+        await deleteDoc(classRef);
         showToast('Class deleted successfully', 'success');
         return true;
     } catch (error) {

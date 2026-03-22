@@ -3,7 +3,7 @@
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 // Firebase config - REPLACE WITH YOUR NEW PROJECT CONFIG
 const firebaseConfig = {
@@ -69,4 +69,5 @@ export function getCurrentAdmin() {
     return currentAdmin;
 }
 
-export { db };
+// Export Firestore functions
+export { db, collection, getDocs, addDoc, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc };
