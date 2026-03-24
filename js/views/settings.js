@@ -106,7 +106,6 @@ function initDarkMode() {
 }
 
 function renderChangePassword() {
-    // Make sure Firebase is initialized
     import('../firebase/firebaseInit.js').then(({ initFirebase, getAuth }) => {
         initFirebase().then(() => {
             const auth = getAuth();
@@ -187,7 +186,6 @@ async function handleChangePassword() {
         changeBtn.textContent = 'Verifying...';
         changeBtn.disabled = true;
         
-        // Make sure Firebase is initialized
         const { initFirebase, getAuth } = await import('../firebase/firebaseInit.js');
         await initFirebase();
         const auth = getAuth();
@@ -222,47 +220,46 @@ async function handleChangePassword() {
     }
 }
 
+
 function confirmDeleteAccount() {
-    import('../firebase/firebaseInit.js').then(({ initFirebase, getAuth }) => {
-        initFirebase().then(() => {
-            const auth = getAuth();
-            const user = auth ? auth.currentUser : null;
-            
-            if (!user) {
-                showToast('Please login first', 'error');
-                renderLogin();
-                return;
-            }
-            
-            const content = document.getElementById('main-content');
-            const previousContent = content.innerHTML;
-            
-            const deleteModalHTML = `
-                <div class="delete-modal-overlay">
-                    <div class="delete-modal">
-                        <div class="delete-modal-icon">⚠️</div>
-                        <h3 class="delete-modal-title">Delete Account?</h3>
-                        <p class="delete-modal-message">
-                            This action is <strong>PERMANENT</strong> and cannot be undone.<br>
-                            All your data will be lost.
-                        </p>
-                        <div class="delete-modal-buttons">
-                            <button class="delete-modal-cancel" onclick="window.cancelDelete()">Cancel</button>
-                            <button class="delete-modal-confirm" onclick="window.deleteAccount()">Delete Forever</button>
-                        </div>
+    import('../firebase/firebaseInit.js').then(async ({ initFirebase, getAuth }) => {
+        await initFirebase();
+        const auth = getAuth();
+        const user = auth ? auth.currentUser : null;
+        
+        if (!user) {
+            showToast('Please login first', 'error');
+            renderLogin();
+            return;
+        }
+        
+        const content = document.getElementById('main-content');
+        const previousContent = content.innerHTML;
+        
+        const deleteModalHTML = `
+            <div class="delete-modal-overlay">
+                <div class="delete-modal">
+                    <div class="delete-modal-icon">⚠️</div>
+                    <h3 class="delete-modal-title">Delete Account?</h3>
+                    <p class="delete-modal-message">
+                        This action is <strong>PERMANENT</strong> and cannot be undone.<br>
+                        All your data will be lost.
+                    </p>
+                    <div class="delete-modal-buttons">
+                        <button class="delete-modal-cancel" onclick="window.cancelDelete()">Cancel</button>
+                        <button class="delete-modal-confirm" onclick="window.deleteAccount()">Delete Forever</button>
                     </div>
                 </div>
-            `;
-            
-            window.previousContent = previousContent;
-            content.innerHTML = deleteModalHTML;
-        }).catch(error => {
-            console.error('Firebase init error:', error);
-            showToast('Failed to load', 'error');
-        });
+            </div>
+        `;
+        
+        window.previousContent = previousContent;
+        content.innerHTML = deleteModalHTML;
+    }).catch(error => {
+        console.error('Firebase init error:', error);
+        showToast('Failed to load', 'error');
     });
-}
-
+}           
 
 function cancelDelete() {
     const content = document.getElementById('main-content');
@@ -274,19 +271,29 @@ function cancelDelete() {
 }
 
 async function deleteAccount() {
-    const { auth } = getAuth();
-    const { db } = getDb();
-    const user = auth.currentUser;
-    
-    if (!user) {
-        showToast('No user logged in', 'error');
-        renderLogin();
-        return;
-    }
-    
-    const userId = user.uid;
-    
     try {
+        // Initialize Firebase first
+        const { initFirebase, getAuth, getDb } = await import('../firebase/firebaseInit.js');
+        await initFirebase();
+        
+        const auth = getAuth();
+        const db = getDb();
+        
+        if (!auth || !db) {
+            showToast('Firebase not initialized', 'error');
+            return;
+        }
+        
+        const user = auth.currentUser;
+        
+        if (!user) {
+            showToast('No user logged in', 'error');
+            renderLogin();
+            return;
+        }
+        
+        const userId = user.uid;
+        
         showToast('Deleting account...', 'info');
         
         // Delete attempts
@@ -325,6 +332,7 @@ async function deleteAccount() {
         renderSettings();
     }
 }
+
 
 // Make globally available
 window.setDarkMode = setDarkMode;
