@@ -1,7 +1,7 @@
 // js/auth/register.js
 // Registration view and handler
 
-import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, updateProfile } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getAuth, getDb } from '../firebase/firebaseInit.js';
 import { updateHeader } from '../ui/header.js';
 import { updateBottomNav } from '../ui/bottomNav.js';
@@ -131,8 +131,6 @@ function renderRegister() {
     });
 }
 
-// js/auth/register.js - Complete handleRegister function
-
 async function handleRegister() {
     const fullName = document.getElementById('fullName')?.value;
     const email = document.getElementById('email')?.value;
@@ -178,6 +176,10 @@ async function handleRegister() {
         const db = getDb();
         const auth = getAuth();
         
+        if (!auth || !db) {
+            throw new Error('Firebase not initialized');
+        }
+        
         // Check if username already exists
         const usernameSnapshot = await db.collection('users').where('username', '==', username).get();
         
@@ -218,19 +220,20 @@ async function handleRegister() {
                 return;
             }
             
-            const teacherData = teacherQuery.docs[0].data();
             teacherId = teacherQuery.docs[0].id;
         }
         
         registerBtn.textContent = 'Creating Account...';
         
-        // Create Firebase Auth user
-        const userCredential = await auth.createUserWithEmailAndPassword(auth, email, password);
+        // Create Firebase Auth user - FIXED: pass (auth, email, password)
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
-        await user.updateProfile({ displayName: fullName });
+        // Update profile
+        await updateProfile(user, { displayName: fullName });
         
-       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+        // Set persistence
+        await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
         
         // Create user document in Firestore
         const userData = {
@@ -246,9 +249,9 @@ async function handleRegister() {
         
         // Add teacher code if provided
         if (teacherCode && teacherId) {
-            userData.teacherCode = teacherCode.toUpperCase();
-            userData.teacherId = teacherId;
-            userData.teacherCodeProvidedAt = firebase.firestore.FieldValue.serverTimestamp();
+            userData.currentTeacherCode = teacherCode.toUpperCase();
+            userData.currentTeacherId = teacherId;
+            userData.teacherLinkedAt = firebase.firestore.FieldValue.serverTimestamp();
         }
         
         await db.collection('users').doc(user.uid).set(userData);
