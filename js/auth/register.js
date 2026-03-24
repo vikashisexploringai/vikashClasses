@@ -1,7 +1,6 @@
 // js/auth/register.js
 // Registration view and handler
 
-import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, updateProfile } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getAuth, getDb } from '../firebase/firebaseInit.js';
 import { updateHeader } from '../ui/header.js';
 import { updateBottomNav } from '../ui/bottomNav.js';
@@ -174,13 +173,7 @@ async function handleRegister() {
         registerBtn.disabled = true;
         
         const db = getDb();
-        
-        // Get auth from the modular SDK directly (not from getAuth())
         const auth = getAuth();
-        
-        if (!auth || !db) {
-            throw new Error('Firebase not initialized');
-        }
         
         // Check if username already exists
         const usernameSnapshot = await db.collection('users').where('username', '==', username).get();
@@ -227,15 +220,15 @@ async function handleRegister() {
         
         registerBtn.textContent = 'Creating Account...';
         
-        // Create Firebase Auth user
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Create Firebase Auth user using compat SDK
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
-        // Update profile
-        await updateProfile(user, { displayName: fullName });
+        await user.updateProfile({ displayName: fullName });
         
-        // Set persistence
-        await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+        await auth.setPersistence(
+            rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
+        );
         
         // Create user document in Firestore
         const userData = {
@@ -249,7 +242,7 @@ async function handleRegister() {
             overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 }
         };
         
-        // Add teacher code if provided
+        // Add teacher code if provided - using currentTeacher fields to match classSelection.js
         if (teacherCode && teacherId) {
             userData.currentTeacherCode = teacherCode.toUpperCase();
             userData.currentTeacherId = teacherId;
