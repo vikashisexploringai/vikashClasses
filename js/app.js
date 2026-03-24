@@ -7,12 +7,7 @@ import { loadConfig, loadClassConfig } from './core/config.js';
 import { renderLogin } from './auth/login.js';
 import { renderRegister, handleRegister } from './auth/register.js';
 import { handleLogout } from './auth/logout.js';
-import { 
-    renderForgotUsername, 
-    handleFindUsername, 
-    renderForgotPassword, 
-    handleSendResetEmail 
-} from './auth/password.js';
+import { renderForgotPassword, handleSendResetEmail } from './auth/password.js';
 import { renderClassSelection, selectClass } from './views/classSelection.js';
 import { renderSubjects, selectSubject } from './views/subjects.js';
 import { renderLessons, selectLesson } from './views/lessons.js';
@@ -26,8 +21,6 @@ window.renderLogin = renderLogin;
 window.renderRegister = renderRegister;
 window.handleRegister = handleRegister;
 window.handleLogout = handleLogout;
-window.renderForgotUsername = renderForgotUsername;
-window.handleFindUsername = handleFindUsername;
 window.renderForgotPassword = renderForgotPassword;
 window.handleSendResetEmail = handleSendResetEmail;
 window.renderClassSelection = renderClassSelection;

@@ -1,103 +1,12 @@
 // js/auth/password.js
-// Forgot password and username functions
+// Forgot password only (students use real emails)
 
-import { getAuth, getDb } from '../firebase/firebaseInit.js';
+import { getAuth } from '../firebase/firebaseInit.js';
 import { updateHeader } from '../ui/header.js';
 import { updateBottomNav } from '../ui/bottomNav.js';
 import { showToast } from '../ui/toast.js';
 import { showInlineMessage, clearInlineMessages } from '../ui/modals.js';
 import { renderLogin } from './login.js';
-
-// ===== FORGOT USERNAME (using email) =====
-function renderForgotUsername() {
-    const appHeader = document.getElementById('app-header');
-    if (appHeader) appHeader.style.display = 'flex';
-    
-    const content = document.getElementById('main-content');
-    
-    updateHeader('Find Username');
-    
-    const html = `
-        <div class="auth-container">
-            <div class="auth-card">
-                <h2>Find Your Username</h2>
-                <p style="color: #64748b; font-size: 14px; text-align: center; margin-bottom: 24px;">
-                    Enter your email address to retrieve your username.
-                </p>
-                
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="forgotEmail" placeholder="student@example.com" class="auth-input">
-                </div>
-                
-                <button class="auth-btn" onclick="window.handleFindUsername()">Find Username</button>
-                
-                <div id="usernameResult" style="display: none; margin: 20px 0; padding: 16px; background: #f0f9ff; border-radius: 12px; text-align: center;">
-                    <p style="color: #0369a1; margin-bottom: 4px;">Your username is:</p>
-                    <p id="foundUsername" style="font-size: 20px; font-weight: 600; color: #0f172a;"></p>
-                </div>
-                
-                <div class="auth-links">
-                    <button class="link-btn" onclick="window.renderLogin()">Back to Login</button>
-                    <button class="link-btn" onclick="window.renderForgotPassword()">Forgot Password?</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    content.innerHTML = html;
-    updateBottomNav('forgotUsername');
-}
-
-async function handleFindUsername() {
-    const email = document.getElementById('forgotEmail')?.value;
-    
-    clearInlineMessages();
-    
-    if (!email) {
-        showInlineMessage('forgotEmail', 'Please enter your email');
-        return;
-    }
-    
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showInlineMessage('forgotEmail', 'Please enter a valid email address');
-        return;
-    }
-    
-    try {
-        const findBtn = document.querySelector('.auth-btn');
-        findBtn.textContent = 'Searching...';
-        findBtn.disabled = true;
-        
-        const { db } = getDb();
-        
-        const snapshot = await db.collection('users')
-            .where('email', '==', email)
-            .get();
-        
-        findBtn.textContent = 'Find Username';
-        findBtn.disabled = false;
-        
-        if (snapshot.empty) {
-            showToast('No account found with this email', 'error');
-            return;
-        }
-        
-        const userData = snapshot.docs[0].data();
-        
-        document.getElementById('foundUsername').textContent = userData.username;
-        document.getElementById('usernameResult').style.display = 'block';
-        showToast('Username found!', 'success');
-        
-    } catch (error) {
-        console.error('Error finding username:', error);
-        showToast('An error occurred. Please try again.', 'error');
-        
-        const findBtn = document.querySelector('.auth-btn');
-        findBtn.textContent = 'Find Username';
-        findBtn.disabled = false;
-    }
-}
 
 // ===== FORGOT PASSWORD (Firebase built-in email reset) =====
 function renderForgotPassword() {
@@ -125,7 +34,6 @@ function renderForgotPassword() {
                 
                 <div class="auth-links">
                     <button class="link-btn" onclick="window.renderLogin()">Back to Login</button>
-                    <button class="link-btn" onclick="window.renderForgotUsername()">Forgot Username?</button>
                 </div>
             </div>
         </div>
@@ -160,12 +68,10 @@ async function handleSendResetEmail() {
         // Firebase built-in password reset
         await auth.sendPasswordResetEmail(email);
         
-        showToast('Password reset email sent! Check your inbox.', 'success');
+        showToast('Password reset email sent! Check your inbox (and spam folder).', 'success');
         
-        // Clear form
         document.getElementById('resetEmail').value = '';
         
-        // Optional: redirect to login after 3 seconds
         setTimeout(() => {
             renderLogin();
         }, 3000);
@@ -190,14 +96,10 @@ async function handleSendResetEmail() {
 }
 
 // Make functions globally available
-window.renderForgotUsername = renderForgotUsername;
-window.handleFindUsername = handleFindUsername;
 window.renderForgotPassword = renderForgotPassword;
 window.handleSendResetEmail = handleSendResetEmail;
 
 export { 
-    renderForgotUsername, 
-    handleFindUsername, 
     renderForgotPassword, 
     handleSendResetEmail 
 };
