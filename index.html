@@ -25,6 +25,24 @@
         <nav class="bottom-nav" id="bottom-nav"></nav>
     </div>
 
+    <!-- Teacher Code Modal -->
+    <div id="teacherCodeModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 400px;">
+            <h3>🔑 Enter Teacher Code</h3>
+            <p style="color: #64748b; margin-bottom: 20px;" id="teacherCodeModalMessage">
+                Enter the code provided by your teacher.
+            </p>
+            <div class="form-group">
+                <label>Teacher Code</label>
+                <input type="text" id="teacherCodeInput" placeholder="TEACH-XXXXXX" autocomplete="off">
+            </div>
+            <div class="modal-buttons">
+                <button id="cancelTeacherCodeBtn" class="modal-cancel">Cancel</button>
+                <button id="submitTeacherCodeBtn" class="modal-confirm">Submit</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main JavaScript - MODULAR VERSION -->
     <script type="module" src="js/app.js"></script>
 </body>

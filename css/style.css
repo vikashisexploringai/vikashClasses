@@ -2032,3 +2032,18 @@ body.dark-mode .toggle-btn.active {
 .back-btn:hover {
     background: #f8fafc;
 }
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+}
