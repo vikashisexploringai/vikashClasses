@@ -174,6 +174,8 @@ async function handleRegister() {
         registerBtn.disabled = true;
         
         const db = getDb();
+        
+        // Get auth from the modular SDK directly (not from getAuth())
         const auth = getAuth();
         
         if (!auth || !db) {
@@ -225,7 +227,7 @@ async function handleRegister() {
         
         registerBtn.textContent = 'Creating Account...';
         
-        // Create Firebase Auth user - FIXED: pass (auth, email, password)
+        // Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
