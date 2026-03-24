@@ -7,6 +7,7 @@ import { updateBottomNav } from '../ui/bottomNav.js';
 import { showToast } from '../ui/toast.js';
 import { showInlineMessage, clearInlineMessages } from '../ui/modals.js';
 import { updateState } from '../core/state.js';
+import { setPersistence, browserLocalPersistence, browserSessionPersistence, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 function renderLogin() {
     const appHeader = document.getElementById('app-header');
@@ -71,10 +72,14 @@ async function handleLogin() {
         loginBtn.textContent = 'Logging in...';
         loginBtn.disabled = true;
         
-        const { auth } = getAuth();
+        await initFirebase();
+        
+        const auth = getAuth();
         const db = getDb();
         
-        await initFirebase();
+        if (!auth || !db) {
+            throw new Error('Firebase not initialized');
+        }
         
         // Check if this email exists in students collection BEFORE login
         const userQuery = await db.collection('users').where('email', '==', email).get();
@@ -86,12 +91,11 @@ async function handleLogin() {
             return;
         }
         
-        // Proceed with login
-        await auth.setPersistence(
-            rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
-        );
+        // Set persistence
+        await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
         
-        await auth.signInWithEmailAndPassword(email, password);
+        // Sign in
+        await signInWithEmailAndPassword(auth, email, password);
         showToast('Login successful!', 'success');
         
     } catch (error) {

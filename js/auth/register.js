@@ -1,6 +1,7 @@
 // js/auth/register.js
 // Registration view and handler
 
+import { createUserWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getAuth, getDb } from '../firebase/firebaseInit.js';
 import { updateHeader } from '../ui/header.js';
 import { updateBottomNav } from '../ui/bottomNav.js';
@@ -224,14 +225,12 @@ async function handleRegister() {
         registerBtn.textContent = 'Creating Account...';
         
         // Create Firebase Auth user
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const userCredential = await auth.createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         
         await user.updateProfile({ displayName: fullName });
         
-        await auth.setPersistence(
-            rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
-        );
+       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
         
         // Create user document in Firestore
         const userData = {
