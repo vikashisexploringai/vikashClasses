@@ -1,6 +1,6 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation
-
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
 import { auth, db } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
@@ -11,14 +11,6 @@ export function generateTeacherCode() {
     return TEACHER_CODE_PREFIX + generateRandomCode(6);
 }
 
-function generateTempPassword() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-    let password = '';
-    for (let i = 0; i < 10; i++) {
-        password += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return password + '@1';
-}
 
 export async function loadTeachers() {
     const snapshot = await db.collection('teachers').get();
@@ -34,7 +26,6 @@ export async function loadTeachers() {
 
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
-    const tempPassword = generateTempPassword();
     
     try {
         // Check if teacher already exists in Firestore
@@ -45,40 +36,19 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Create Firebase Auth user FIRST
-        let userCredential;
-        let authUser = null;
+        // Call the Cloud Function to create the teacher user
+        const functions = getFunctions();
+        const createTeacherUser = httpsCallable(functions, 'createTeacherUser');
         
-        try {
-            // Try to create the auth user
-            userCredential = await auth.createUserWithEmailAndPassword(email, tempPassword);
-            authUser = userCredential.user;
-            showToast(`Auth user created with temporary password: ${tempPassword}`, 'info');
-        } catch (authError) {
-            if (authError.code === 'auth/email-already-in-use') {
-                // User exists in Auth, get their info
-                showToast('Email already has an Auth account. Linking to Firestore.', 'info');
-                // We'll still need the UID - we can get it by signing in temporarily
-                // For now, we'll proceed without UID
-                authUser = { uid: null };
-            } else {
-                throw authError;
-            }
-        }
-        
-        // Add teacher to Firestore
-        const teacherRef = await db.collection('teachers').add({
+        const result = await createTeacherUser({
             email: email,
             displayName: displayName || email.split('@')[0],
-            teacherCode: teacherCode,
-            createdAt: new Date(),
-            isActive: true,
-            classes: [],
-            authUid: authUser?.uid || null,
-            hasSetupPassword: false
+            teacherCode: teacherCode
         });
         
-        // Also store in superAdmin settings for validation
+        const { tempPassword } = result.data;
+        
+        // Also store in superAdmin settings for validation (optional)
         try {
             const settingsRef = db.collection('superAdmin').doc('settings');
             const settingsDoc = await settingsRef.get();
@@ -93,8 +63,7 @@ export async function addTeacher(email, displayName) {
                 displayName: displayName || email.split('@')[0],
                 createdAt: new Date(),
                 used: false,
-                tempPassword: tempPassword,
-                hasAuthAccount: !!authUser
+                tempPassword: tempPassword
             };
             
             await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
@@ -103,10 +72,7 @@ export async function addTeacher(email, displayName) {
             console.warn('Could not update superAdmin settings:', settingsError);
         }
         
-        const message = `Teacher added! Code: ${teacherCode}\n\n`;
-        const passwordMessage = authUser ? `Temporary password: ${tempPassword}\n\nPlease share this with the teacher.` : `Teacher already has an Auth account. No password needed.`;
-        
-        showToast(message + passwordMessage, 'success');
+        showToast(`Teacher added! Code: ${teacherCode}\nTemporary password: ${tempPassword}`, 'success');
         return true;
         
     } catch (error) {
@@ -115,6 +81,7 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
+
 
 export async function removeTeacher(teacherId) {
     try {
