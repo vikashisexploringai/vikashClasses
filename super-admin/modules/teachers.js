@@ -2,6 +2,7 @@
 // Teacher management with Auth account creation via Cloud Function
 
 import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+import { collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { auth, db, functions } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
@@ -12,7 +13,8 @@ export function generateTeacherCode() {
 }
 
 export async function loadTeachers() {
-    const snapshot = await db.collection('teachers').get();
+    const teachersRef = collection(db, 'teachers');
+    const snapshot = await getDocs(teachersRef);
     
     const teachers = [];
     snapshot.forEach(doc => {
@@ -26,7 +28,9 @@ export async function addTeacher(email, displayName) {
     
     try {
         // Check if teacher already exists in Firestore
-        const existing = await db.collection('teachers').where('email', '==', email).get();
+        const teachersRef = collection(db, 'teachers');
+        const q = query(teachersRef, where('email', '==', email));
+        const existing = await getDocs(q);
         
         if (!existing.empty) {
             showToast('Teacher already exists', 'error');
@@ -44,10 +48,10 @@ export async function addTeacher(email, displayName) {
         
         const { tempPassword } = result.data;
         
-        // Also store in superAdmin settings for validation (optional)
+        // Also store in superAdmin settings for validation
         try {
-            const settingsRef = db.collection('superAdmin').doc('settings');
-            const settingsDoc = await settingsRef.get();
+            const settingsRef = doc(db, 'superAdmin', 'settings');
+            const settingsDoc = await getDoc(settingsRef);
             
             let teacherCodes = {};
             if (settingsDoc.exists) {
@@ -62,7 +66,7 @@ export async function addTeacher(email, displayName) {
                 tempPassword: tempPassword
             };
             
-            await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
+            await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
             
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
@@ -80,21 +84,21 @@ export async function addTeacher(email, displayName) {
 
 export async function removeTeacher(teacherId) {
     try {
-        const teacherRef = db.collection('teachers').doc(teacherId);
-        const teacherDoc = await teacherRef.get();
+        const teacherRef = doc(db, 'teachers', teacherId);
+        const teacherDoc = await getDoc(teacherRef);
         const teacherData = teacherDoc.data();
         
-        await teacherRef.delete();
+        await deleteDoc(teacherRef);
         
         try {
-            const settingsRef = db.collection('superAdmin').doc('settings');
-            const settingsDoc = await settingsRef.get();
+            const settingsRef = doc(db, 'superAdmin', 'settings');
+            const settingsDoc = await getDoc(settingsRef);
             
             if (settingsDoc.exists) {
                 const teacherCodes = settingsDoc.data().teacherCodes || {};
                 if (teacherData?.teacherCode) {
                     delete teacherCodes[teacherData.teacherCode];
-                    await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
+                    await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
                 }
             }
         } catch (settingsError) {
@@ -113,7 +117,9 @@ export async function removeTeacher(teacherId) {
 // Load all classes for a specific teacher
 export async function loadTeacherClasses(teacherId) {
     try {
-        const snapshot = await db.collection('classes').where('teacherId', '==', teacherId).get();
+        const classesRef = collection(db, 'classes');
+        const q = query(classesRef, where('teacherId', '==', teacherId));
+        const snapshot = await getDocs(q);
         
         const classes = [];
         snapshot.forEach(doc => {
@@ -129,7 +135,8 @@ export async function loadTeacherClasses(teacherId) {
 // Load all students enrolled in a class
 export async function loadClassStudents(classId) {
     try {
-        const classDoc = await db.collection('classes').doc(classId).get();
+        const classRef = doc(db, 'classes', classId);
+        const classDoc = await getDoc(classRef);
         
         if (!classDoc.exists) return [];
         
@@ -138,7 +145,8 @@ export async function loadClassStudents(classId) {
         
         const students = [];
         for (const studentId of studentIds) {
-            const studentDoc = await db.collection('users').doc(studentId).get();
+            const studentRef = doc(db, 'users', studentId);
+            const studentDoc = await getDoc(studentRef);
             if (studentDoc.exists) {
                 students.push({ id: studentDoc.id, ...studentDoc.data() });
             }
@@ -153,7 +161,8 @@ export async function loadClassStudents(classId) {
 // Load student progress
 export async function loadStudentProgress(studentId) {
     try {
-        const userDoc = await db.collection('users').doc(studentId).get();
+        const userRef = doc(db, 'users', studentId);
+        const userDoc = await getDoc(userRef);
         
         if (userDoc.exists) {
             return userDoc.data().progress || { overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 } };
@@ -168,7 +177,9 @@ export async function loadStudentProgress(studentId) {
 // Get student quiz attempts
 export async function getStudentAttempts(studentId) {
     try {
-        const snapshot = await db.collection('attempts').where('userId', '==', studentId).get();
+        const attemptsRef = collection(db, 'attempts');
+        const q = query(attemptsRef, where('userId', '==', studentId));
+        const snapshot = await getDocs(q);
         
         const attempts = [];
         snapshot.forEach(doc => {

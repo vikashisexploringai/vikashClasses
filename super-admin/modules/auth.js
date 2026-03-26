@@ -1,6 +1,11 @@
 // super-admin/modules/auth.js
 // Super Admin authentication
 
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { getFunctions } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+
 // Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
@@ -11,16 +16,11 @@ const firebaseConfig = {
   appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
 };
 
-// Initialize Firebase (compat style)
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-// Initialize Functions
-const functions = firebase.functions ? firebase.functions() : null;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const functions = getFunctions(app);
 
 // Super Admin email
 const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
@@ -31,7 +31,7 @@ let authListener = null;
 export async function initSuperAdmin(onAuthChange) {
     if (authListener) return;
     
-    authListener = auth.onAuthStateChanged(async (user) => {
+    authListener = onAuthStateChanged(auth, async (user) => {
         if (user && user.email === SUPER_ADMIN_EMAIL) {
             // Check if user has superAdmin claim
             const token = await user.getIdTokenResult();
@@ -53,9 +53,9 @@ export async function initSuperAdmin(onAuthChange) {
 }
 
 export async function signInWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
+    const provider = new GoogleAuthProvider();
     try {
-        const result = await auth.signInWithPopup(provider);
+        const result = await signInWithPopup(auth, provider);
         return { success: true, user: result.user };
     } catch (error) {
         console.error('Google sign-in error:', error);
