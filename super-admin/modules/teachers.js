@@ -6,14 +6,6 @@ import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
-function generateTempPassword() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-    let password = '';
-    for (let i = 0; i < 10; i++) {
-        password += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return password + '@1';
-}
 
 export function generateTeacherCode() {
     return TEACHER_CODE_PREFIX + generateRandomCode(6);
