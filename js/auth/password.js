@@ -1,12 +1,13 @@
 // js/auth/password.js
 // Forgot password only (students use real emails)
 
-import { getAuth } from '../firebase/firebaseInit.js';
+import { getAuth, initFirebase } from '../firebase/firebaseInit.js';
 import { updateHeader } from '../ui/header.js';
 import { updateBottomNav } from '../ui/bottomNav.js';
 import { showToast } from '../ui/toast.js';
 import { showInlineMessage, clearInlineMessages } from '../ui/modals.js';
 import { renderLogin } from './login.js';
+import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 // ===== FORGOT PASSWORD (Firebase built-in email reset) =====
 function renderForgotPassword() {
@@ -63,10 +64,18 @@ async function handleSendResetEmail() {
         resetBtn.textContent = 'Sending...';
         resetBtn.disabled = true;
         
-        const { auth } = getAuth();
+        // Make sure Firebase is initialized
+        await initFirebase();
         
-        // Firebase built-in password reset
-        await auth.sendPasswordResetEmail(email);
+        // Get the auth instance
+        const auth = getAuth();
+        
+        if (!auth) {
+            throw new Error('Auth not initialized');
+        }
+        
+        // Use the modular sendPasswordResetEmail function
+        await sendPasswordResetEmail(auth, email);
         
         showToast('Password reset email sent! Check your inbox (and spam folder).', 'success');
         
