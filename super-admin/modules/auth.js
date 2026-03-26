@@ -19,6 +19,8 @@ if (!firebase.apps.length) {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Initialize Functions
+const functions = firebase.functions ? firebase.functions() : null;
 
 // Super Admin email
 const SUPER_ADMIN_EMAIL = 'vikashisexploringai@gmail.com';
@@ -69,5 +71,5 @@ export function getCurrentAdmin() {
     return currentAdmin;
 }
 
-// Export auth and db for use in other modules
-export { auth, db };
+// Export auth, db, and functions for use in other modules
+export { auth, db, functions };

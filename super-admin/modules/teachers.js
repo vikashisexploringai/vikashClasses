@@ -1,16 +1,15 @@
 // super-admin/modules/teachers.js
-// Teacher management with Auth account creation
-import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
-import { auth, db } from './auth.js';
+// Teacher management with Auth account creation via Cloud Function
+
+import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+import { auth, db, functions } from './auth.js';
 import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
-
 export function generateTeacherCode() {
     return TEACHER_CODE_PREFIX + generateRandomCode(6);
 }
-
 
 export async function loadTeachers() {
     const snapshot = await db.collection('teachers').get();
@@ -21,8 +20,6 @@ export async function loadTeachers() {
     });
     return teachers;
 }
-
-// super-admin/modules/teachers.js - updated addTeacher function
 
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
@@ -37,7 +34,6 @@ export async function addTeacher(email, displayName) {
         }
         
         // Call the Cloud Function to create the teacher user
-        const functions = getFunctions();
         const createTeacherUser = httpsCallable(functions, 'createTeacherUser');
         
         const result = await createTeacherUser({
@@ -81,7 +77,6 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
-
 
 export async function removeTeacher(teacherId) {
     try {
