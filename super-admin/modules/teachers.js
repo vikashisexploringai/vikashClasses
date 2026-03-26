@@ -85,16 +85,22 @@ export async function addTeacher(email, displayName) {
             hasSetupPassword: false
         });
         
-        // Also store in superAdmin settings for validation
+        // Also store in superAdmin settings for validation (create if doesn't exist)
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
             
             let teacherCodes = {};
+            
+            // If document exists, get existing teacherCodes
             if (settingsDoc.exists) {
-                teacherCodes = settingsDoc.data().teacherCodes || {};
+                const data = settingsDoc.data();
+                if (data && data.teacherCodes) {
+                    teacherCodes = data.teacherCodes;
+                }
             }
             
+            // Add the new teacher code
             teacherCodes[teacherCode] = {
                 email: email,
                 displayName: displayName || email.split('@')[0],
@@ -103,10 +109,12 @@ export async function addTeacher(email, displayName) {
                 tempPassword: tempPassword
             };
             
+            // Save back to Firestore (creates document if it doesn't exist)
             await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
             
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
+            // Non-critical error, continue
         }
         
         showToast(`Teacher added! Code: ${teacherCode}\nTemporary password: ${tempPassword}`, 'success');
@@ -127,16 +135,15 @@ export async function removeTeacher(teacherId) {
         
         await deleteDoc(teacherRef);
         
+        // Remove from superAdmin settings if it exists
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
             
-            if (settingsDoc.exists) {
+            if (settingsDoc.exists && teacherData?.teacherCode) {
                 const teacherCodes = settingsDoc.data().teacherCodes || {};
-                if (teacherData?.teacherCode) {
-                    delete teacherCodes[teacherData.teacherCode];
-                    await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
-                }
+                delete teacherCodes[teacherData.teacherCode];
+                await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
             }
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
@@ -150,6 +157,7 @@ export async function removeTeacher(teacherId) {
         return false;
     }
 }
+
 
 // Load all classes for a specific teacher
 export async function loadTeacherClasses(teacherId) {
