@@ -6,6 +6,15 @@ import { generateRandomCode, showToast } from './utils.js';
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
+function generateTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return password + '@1';
+}
+
 export function generateTeacherCode() {
     return TEACHER_CODE_PREFIX + generateRandomCode(6);
 }
@@ -33,6 +42,7 @@ export async function loadTeachers() {
 
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
+    const tempPassword = generateTempPassword();
     
     try {
         // Check if teacher already exists in Firestore
@@ -43,18 +53,40 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Add teacher to Firestore (NO Auth account created yet)
-        await db.collection('teachers').add({
+        // Create Firebase Auth user FIRST
+        let userCredential;
+        let authUser = null;
+        
+        try {
+            // Try to create the auth user
+            userCredential = await auth.createUserWithEmailAndPassword(email, tempPassword);
+            authUser = userCredential.user;
+            showToast(`Auth user created with temporary password: ${tempPassword}`, 'info');
+        } catch (authError) {
+            if (authError.code === 'auth/email-already-in-use') {
+                // User exists in Auth, get their info
+                showToast('Email already has an Auth account. Linking to Firestore.', 'info');
+                // We'll still need the UID - we can get it by signing in temporarily
+                // For now, we'll proceed without UID
+                authUser = { uid: null };
+            } else {
+                throw authError;
+            }
+        }
+        
+        // Add teacher to Firestore
+        const teacherRef = await db.collection('teachers').add({
             email: email,
             displayName: displayName || email.split('@')[0],
             teacherCode: teacherCode,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date(),
             isActive: true,
-            hasSetupPassword: false,  // Flag to track if password is set
-            classes: []
+            classes: [],
+            authUid: authUser?.uid || null,
+            hasSetupPassword: false
         });
         
-        // Store in superAdmin settings
+        // Also store in superAdmin settings for validation
         try {
             const settingsRef = db.collection('superAdmin').doc('settings');
             const settingsDoc = await settingsRef.get();
@@ -68,7 +100,9 @@ export async function addTeacher(email, displayName) {
                 email: email,
                 displayName: displayName || email.split('@')[0],
                 createdAt: new Date(),
-                used: false
+                used: false,
+                tempPassword: tempPassword,
+                hasAuthAccount: !!authUser
             };
             
             await settingsRef.set({ teacherCodes: teacherCodes }, { merge: true });
@@ -77,7 +111,10 @@ export async function addTeacher(email, displayName) {
             console.warn('Could not update superAdmin settings:', settingsError);
         }
         
-        showToast(`Teacher added! Code: ${teacherCode}\n\nTeacher will receive a setup link.`, 'success');
+        const message = `Teacher added! Code: ${teacherCode}\n\n`;
+        const passwordMessage = authUser ? `Temporary password: ${tempPassword}\n\nPlease share this with the teacher.` : `Teacher already has an Auth account. No password needed.`;
+        
+        showToast(message + passwordMessage, 'success');
         return true;
         
     } catch (error) {
@@ -86,7 +123,6 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
-
 
 export async function removeTeacher(teacherId) {
     try {
