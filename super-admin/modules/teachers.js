@@ -1,15 +1,40 @@
 // super-admin/modules/teachers.js
-// Teacher management with Auth account creation via Cloud Function
+// Teacher management with Auth account creation (using separate auth instance)
 
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
-import { collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
-import { auth, db, functions } from './auth.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { generateRandomCode, showToast } from './utils.js';
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyBhujqx9CZwK_NUrQgcUEX5wxKS0hYjXKc",
+  authDomain: "vikash-classes-c98f8.firebaseapp.com",
+  projectId: "vikash-classes-c98f8",
+  storageBucket: "vikash-classes-c98f8.firebasestorage.app",
+  messagingSenderId: "456891384843",
+  appId: "1:456891384843:web:cf845b07c2884a4c64b30e"
+};
+
+// Create a SEPARATE app instance for teacher creation
+// This prevents interfering with the Super Admin session
+const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
+const teacherAuth = getAuth(teacherApp);
+const db = getFirestore(teacherApp);
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
 export function generateTeacherCode() {
     return TEACHER_CODE_PREFIX + generateRandomCode(6);
+}
+
+function generateTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 10; i++) {
+        password += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return password + '@1';
 }
 
 export async function loadTeachers() {
@@ -25,6 +50,7 @@ export async function loadTeachers() {
 
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
+    const tempPassword = generateTempPassword();
     
     try {
         // Check if teacher already exists in Firestore
@@ -37,16 +63,27 @@ export async function addTeacher(email, displayName) {
             return false;
         }
         
-        // Call the Cloud Function to create the teacher user
-        const createTeacherUser = httpsCallable(functions, 'createTeacherUser');
+        // Create teacher user using the separate auth instance
+        try {
+            const userCredential = await createUserWithEmailAndPassword(teacherAuth, email, tempPassword);
+            console.log('Teacher user created:', userCredential.user.uid);
+        } catch (authError) {
+            if (authError.code === 'auth/email-already-in-use') {
+                showToast('Email already has an Auth account', 'info');
+            } else {
+                throw authError;
+            }
+        }
         
-        const result = await createTeacherUser({
+        // Add teacher to Firestore
+        await addDoc(collection(db, 'teachers'), {
             email: email,
             displayName: displayName || email.split('@')[0],
-            teacherCode: teacherCode
+            teacherCode: teacherCode,
+            createdAt: new Date(),
+            isActive: true,
+            hasSetupPassword: false
         });
-        
-        const { tempPassword } = result.data;
         
         // Also store in superAdmin settings for validation
         try {
