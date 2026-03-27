@@ -71,5 +71,5 @@ export function getCurrentAdmin() {
     return currentAdmin;
 }
 
-// Export auth, db, and functions for use in other modules
-export { auth, db, functions };
+// Export app, auth, db, and functions for use in other modules
+export { app, auth, db, functions };    
