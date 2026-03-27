@@ -71,15 +71,15 @@ function renderNoTeacherView() {
     const content = document.getElementById('main-content');
     
     const html = `
-        <div style="text-align: center; padding: 40px 20px;">
-            <div style="font-size: 48px; margin-bottom: 20px;">🔑</div>
-            <h2>No Teacher Linked</h2>
-            <p style="color: #64748b; margin-bottom: 24px;">
+        <div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 64px; margin-bottom: 24px;">🔑</div>
+            <h2 style="margin-bottom: 12px; font-size: 24px;">No Teacher Linked</h2>
+            <p style="color: #64748b; margin-bottom: 32px; line-height: 1.5;">
                 You haven't linked to a teacher yet.<br>
                 Ask your teacher for their code to get started.
             </p>
-            <button id="enterTeacherCodeBtn" class="btn-primary" style="max-width: 200px; margin: 0 auto;">
-                Enter Teacher Code
+            <button id="enterTeacherCodeBtn" style="background: #3b82f6; color: white; border: none; padding: 14px 32px; border-radius: 30px; font-size: 16px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                ✨ Enter Teacher Code
             </button>
         </div>
     `;
@@ -89,7 +89,15 @@ function renderNoTeacherView() {
     document.getElementById('enterTeacherCodeBtn')?.addEventListener('click', () => {
         showTeacherCodeModal('enter');
     });
+    
+    // Add hover effect
+    const btn = document.getElementById('enterTeacherCodeBtn');
+    if (btn) {
+        btn.onmouseover = () => btn.style.backgroundColor = '#2563eb';
+        btn.onmouseout = () => btn.style.backgroundColor = '#3b82f6';
+    }
 }
+
 
 function renderTeacherView(teacher, classes) {
     const content = document.getElementById('main-content');
@@ -97,7 +105,7 @@ function renderTeacherView(teacher, classes) {
     let classesHtml = '';
     
     if (classes.length === 0) {
-        classesHtml = '<p style="text-align: center; color: #64748b;">No classes available yet.</p>';
+        classesHtml = '<p style="text-align: center; color: #64748b; padding: 40px;">No classes available yet.</p>';
     } else {
         classesHtml = `
             <div class="classes-grid">
@@ -120,34 +128,45 @@ function renderTeacherView(teacher, classes) {
     }
     
     const html = `
-        <div style="background: #f8fafc; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div style="background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%); border-radius: 16px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
                 <div>
-                    <span style="font-size: 14px; color: #64748b;">Your Teacher</span>
-                    <div style="font-weight: 600; font-size: 18px;">${escapeHtml(teacher.displayName || teacher.email)}</div>
-                    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Code: ${teacher.teacherCode}</div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <span style="font-size: 20px;">👩‍🏫</span>
+                        <span style="font-size: 14px; color: #64748b;">Your Teacher</span>
+                    </div>
+                    <div style="font-weight: 700; font-size: 20px;">${escapeHtml(teacher.displayName || teacher.email)}</div>
+                    <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Code: <span style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${teacher.teacherCode}</span></div>
                 </div>
-                <button id="changeTeacherCodeBtn" class="btn-secondary" style="background: #64748b; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;">
-                    Change Teacher Code
+                <button id="changeTeacherCodeBtn" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                    🔄 Change Code
                 </button>
             </div>
         </div>
         
-        <h3 style="margin-bottom: 16px;">📚 My Classes</h3>
+        <h3 style="margin-bottom: 16px; font-size: 18px;">📚 My Classes</h3>
         ${classesHtml}
     `;
     
     content.innerHTML = html;
     
-    document.getElementById('changeTeacherCodeBtn')?.addEventListener('click', () => {
-        showTeacherCodeModal('change');
-    });
+    const changeBtn = document.getElementById('changeTeacherCodeBtn');
+    if (changeBtn) {
+        changeBtn.addEventListener('click', () => {
+            showTeacherCodeModal('change');
+        });
+        changeBtn.onmouseover = () => changeBtn.style.backgroundColor = '#475569';
+        changeBtn.onmouseout = () => changeBtn.style.backgroundColor = '#64748b';
+    }
 }
+
 
 function showTeacherCodeModal(action) {
     const modal = document.getElementById('teacherCodeModal');
     const messageEl = document.getElementById('teacherCodeModalMessage');
     const input = document.getElementById('teacherCodeInput');
+    const submitBtn = document.getElementById('submitTeacherCodeBtn');
+    const cancelBtn = document.getElementById('cancelTeacherCodeBtn');
     
     if (action === 'change') {
         messageEl.innerHTML = 'Enter the new teacher code. This will replace your current teacher and classes.';
@@ -159,10 +178,7 @@ function showTeacherCodeModal(action) {
     modal.style.display = 'flex';
     input.focus();
     
-    // Remove existing listeners and add new ones
-    const submitBtn = document.getElementById('submitTeacherCodeBtn');
-    const cancelBtn = document.getElementById('cancelTeacherCodeBtn');
-    
+    // Remove existing listeners
     const newSubmitBtn = submitBtn.cloneNode(true);
     const newCancelBtn = cancelBtn.cloneNode(true);
     submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
@@ -182,18 +198,27 @@ function showTeacherCodeModal(action) {
         
         newSubmitBtn.disabled = true;
         newSubmitBtn.textContent = 'Verifying...';
+        newSubmitBtn.style.opacity = '0.7';
         
         const success = await linkTeacher(teacherCode);
         
         newSubmitBtn.disabled = false;
         newSubmitBtn.textContent = 'Submit';
+        newSubmitBtn.style.opacity = '1';
         
         if (success) {
             modal.style.display = 'none';
             renderClassSelection();
         }
     });
+    
+    // Add hover effects
+    newCancelBtn.onmouseover = () => newCancelBtn.style.backgroundColor = '#e2e8f0';
+    newCancelBtn.onmouseout = () => newCancelBtn.style.backgroundColor = '#f1f5f9';
+    newSubmitBtn.onmouseover = () => newSubmitBtn.style.backgroundColor = '#2563eb';
+    newSubmitBtn.onmouseout = () => newSubmitBtn.style.backgroundColor = '#3b82f6';
 }
+
 
 async function linkTeacher(teacherCode) {
     const db = getDb();

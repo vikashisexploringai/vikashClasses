@@ -24,24 +24,23 @@
         </main>
         <nav class="bottom-nav" id="bottom-nav"></nav>
     </div>
-
-    <!-- Teacher Code Modal -->
-    <div id="teacherCodeModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content" style="max-width: 400px;">
-            <h3>🔑 Enter Teacher Code</h3>
-            <p style="color: #64748b; margin-bottom: 20px;" id="teacherCodeModalMessage">
-                Enter the code provided by your teacher.
-            </p>
-            <div class="form-group">
-                <label>Teacher Code</label>
-                <input type="text" id="teacherCodeInput" placeholder="TEACH-XXXXXX" autocomplete="off">
-            </div>
-            <div class="modal-buttons">
-                <button id="cancelTeacherCodeBtn" class="modal-cancel">Cancel</button>
-                <button id="submitTeacherCodeBtn" class="modal-confirm">Submit</button>
-            </div>
+<!-- Teacher Code Modal -->
+<div id="teacherCodeModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <h3 style="margin-top: 0; margin-bottom: 16px; text-align: center;">🔑 Enter Teacher Code</h3>
+        <p style="color: #64748b; margin-bottom: 20px; text-align: center; font-size: 14px;" id="teacherCodeModalMessage">
+            Enter the code provided by your teacher.
+        </p>
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Teacher Code</label>
+            <input type="text" id="teacherCodeInput" placeholder="TEACH-XXXXXX" autocomplete="off" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 16px; text-align: center; letter-spacing: 1px;">
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button id="cancelTeacherCodeBtn" style="flex: 1; padding: 12px; background: #f1f5f9; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; color: #475569;">Cancel</button>
+            <button id="submitTeacherCodeBtn" style="flex: 1; padding: 12px; background: #3b82f6; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; color: white;">Submit</button>
         </div>
     </div>
+</div>
 
     <!-- Main JavaScript - MODULAR VERSION -->
     <script type="module" src="js/app.js"></script>
