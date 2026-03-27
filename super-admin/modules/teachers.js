@@ -160,10 +160,12 @@ export async function removeTeacher(teacherId) {
         // 4. Delete the teacher's Auth account if they have one
         let authDeleted = false;
         if (teacherData.authUid) {
+            console.log('Attempting to delete Auth user with UID:', teacherData.authUid);
+    console.log('deleteUser function:', deleteUser);
             try {
-                await deleteUser({ uid: teacherData.authUid });
-                authDeleted = true;
-                console.log('Auth user deleted:', teacherData.authUid);
+                const result = await deleteUser({ uid: teacherData.authUid });
+        console.log('Delete result:', result);
+        authDeleted = true;
             } catch (authError) {
                 console.error('Error deleting Auth user:', authError);
                 // Continue with Firestore deletion even if Auth fails
