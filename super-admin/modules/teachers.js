@@ -6,7 +6,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebas
 import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { generateRandomCode, showToast } from './utils.js';
-import { functions as adminFunctions } from './auth.js';  // Import the functions from auth.js
+import { auth as superAdminAuth } from './auth.js';  // Import the Super Admin auth instance
 
 // Firebase config
 const firebaseConfig = {
@@ -19,13 +19,17 @@ const firebaseConfig = {
 };
 
 // Create a SEPARATE app instance for teacher creation
-// This prevents interfering with the Super Admin session
 const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
 const teacherAuth = getAuth(teacherApp);
 const db = getFirestore(teacherApp);
 
-// Use the functions from auth.js (Super Admin session) for Cloud Functions
-const deleteUser = httpsCallable(adminFunctions, 'deleteUser');
+// Use the Super Admin's auth to get the functions instance
+// The functions instance needs to be from the same app as the Super Admin session
+const functions = superAdminAuth.app.functions ? superAdminAuth.app.functions() : null;
+const deleteUser = functions ? httpsCallable(functions, 'deleteUser') : null;
+
+console.log('Super Admin logged in:', superAdminAuth.currentUser?.email);
+console.log('deleteUser function ready:', !!deleteUser);
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
@@ -159,9 +163,9 @@ export async function removeTeacher(teacherId) {
         
         // 4. Delete the teacher's Auth account using Super Admin session
         let authDeleted = false;
-        if (teacherData.authUid) {
+        if (teacherData.authUid && deleteUser) {
             console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
-            console.log('🔍 DEBUG: Calling deleteUser with Super Admin session...');
+            console.log('🔍 DEBUG: Super Admin email:', superAdminAuth.currentUser?.email);
             
             try {
                 const result = await deleteUser({ uid: teacherData.authUid });
@@ -172,6 +176,8 @@ export async function removeTeacher(teacherId) {
                 console.error('❌ DEBUG: Error code:', authError.code);
                 console.error('❌ DEBUG: Error message:', authError.message);
             }
+        } else if (!deleteUser) {
+            console.error('deleteUser function not initialized');
         } else {
             console.log('🔍 DEBUG: No authUid found for this teacher');
         }
