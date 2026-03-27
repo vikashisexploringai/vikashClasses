@@ -1,12 +1,12 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation (using separate auth instance)
 
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
-import { getFunctions } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+import { httpsCallable, getFunctions } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { generateRandomCode, showToast } from './utils.js';
+import { auth as mainAuth } from './auth.js';
 
 // Firebase config
 const firebaseConfig = {
@@ -23,8 +23,10 @@ const firebaseConfig = {
 const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
 const teacherAuth = getAuth(teacherApp);
 const db = getFirestore(teacherApp);
-const functions = getFunctions(teacherApp);
-const deleteUser = httpsCallable(functions, 'deleteUser');
+
+// Use MAIN auth (Super Admin) for Cloud Functions
+const mainFunctions = getFunctions();  // This uses the default app (Super Admin session)
+const deleteUser = httpsCallable(mainFunctions, 'deleteUser');
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
@@ -90,10 +92,10 @@ export async function addTeacher(email, displayName) {
             createdAt: new Date(),
             isActive: true,
             hasSetupPassword: false,
-            authUid: authUid  // <-- ADD THIS LINE
+            authUid: authUid
         });
         
-        // Also store in superAdmin settings...
+        // Also store in superAdmin settings for validation
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
@@ -112,7 +114,7 @@ export async function addTeacher(email, displayName) {
                 createdAt: new Date(),
                 used: false,
                 tempPassword: tempPassword,
-                authUid: authUid  // <-- ALSO STORE HERE FOR REFERENCE
+                authUid: authUid
             };
             
             await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
@@ -130,7 +132,6 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
-
 
 export async function removeTeacher(teacherId) {
     try {
@@ -158,25 +159,24 @@ export async function removeTeacher(teacherId) {
         // 3. Delete the teacher from Firestore
         await deleteDoc(teacherRef);
         
-        // 4. Delete the teacher's Auth account if they have one
+        // 4. Delete the teacher's Auth account using Super Admin session
         let authDeleted = false;
-       if (teacherData.authUid) {
-    console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
-    console.log('🔍 DEBUG: deleteUser function:', typeof deleteUser);
-    console.log('🔍 DEBUG: Calling deleteUser...');
-    
-    try {
-        const result = await deleteUser({ uid: teacherData.authUid });
-        console.log('✅ DEBUG: deleteUser result:', result);
-        authDeleted = true;
-    } catch (authError) {
-        console.error('❌ DEBUG: deleteUser error:', authError);
-        console.error('❌ DEBUG: Error code:', authError.code);
-        console.error('❌ DEBUG: Error message:', authError.message);
-    }
-} else {
-    console.log('🔍 DEBUG: No authUid found for this teacher');
-}
+        if (teacherData.authUid) {
+            console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
+            console.log('🔍 DEBUG: Calling deleteUser with Super Admin session...');
+            
+            try {
+                const result = await deleteUser({ uid: teacherData.authUid });
+                console.log('✅ DEBUG: deleteUser result:', result);
+                authDeleted = true;
+            } catch (authError) {
+                console.error('❌ DEBUG: deleteUser error:', authError);
+                console.error('❌ DEBUG: Error code:', authError.code);
+                console.error('❌ DEBUG: Error message:', authError.message);
+            }
+        } else {
+            console.log('🔍 DEBUG: No authUid found for this teacher');
+        }
         
         // 5. Remove from superAdmin settings
         try {
@@ -212,7 +212,6 @@ export async function removeTeacher(teacherId) {
         return false;
     }
 }
-
 
 // Load all classes for a specific teacher
 export async function loadTeacherClasses(teacherId) {
