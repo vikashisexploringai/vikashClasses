@@ -1,12 +1,12 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation (using separate auth instance)
 
-import { httpsCallable, getFunctions } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { generateRandomCode, showToast } from './utils.js';
-import { auth as superAdminAuth } from './auth.js';  // Import the auth instance directly
+import { auth as superAdminAuth } from './auth.js';
 
 // Firebase config
 const firebaseConfig = {
@@ -23,15 +23,37 @@ const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
 const teacherAuth = getAuth(teacherApp);
 const db = getFirestore(teacherApp);
 
-// Use the Super Admin's auth to call the Cloud Function
-// We need to ensure the token is passed - httpsCallable will use the auth from the app
-// So we need to create functions instance with the same app that has the Super Admin session
-// Since superAdminAuth is from the default app, we use getFunctions with no argument to use the default app
-const defaultFunctions = getFunctions(); // This uses the default app (which has Super Admin)
-const deleteUser = httpsCallable(defaultFunctions, 'deleteUser');
+// Function to get the current Super Admin's ID token
+async function getSuperAdminToken() {
+    const user = superAdminAuth.currentUser;
+    if (!user) return null;
+    return await user.getIdToken();
+}
+
+// Create a callable function that includes the token
+async function callDeleteUser(uid) {
+    const token = await getSuperAdminToken();
+    if (!token) {
+        throw new Error('Super Admin not authenticated');
+    }
+    
+    const response = await fetch('https://us-central1-vikash-classes-c98f8.cloudfunctions.net/deleteUser', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ data: { uid } })
+    });
+    
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.error?.message || 'Failed to delete user');
+    }
+    return result.result;
+}
 
 console.log('Super Admin logged in:', superAdminAuth.currentUser?.email);
-console.log('deleteUser ready:', !!deleteUser);
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
@@ -165,21 +187,18 @@ export async function removeTeacher(teacherId) {
         
         // 4. Delete the teacher's Auth account using Super Admin session
         let authDeleted = false;
-        if (teacherData.authUid && deleteUser) {
+        if (teacherData.authUid) {
             console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
             console.log('🔍 DEBUG: Super Admin email:', superAdminAuth.currentUser?.email);
             
             try {
-                const result = await deleteUser({ uid: teacherData.authUid });
+                const result = await callDeleteUser(teacherData.authUid);
                 console.log('✅ DEBUG: deleteUser result:', result);
                 authDeleted = true;
             } catch (authError) {
                 console.error('❌ DEBUG: deleteUser error:', authError);
-                console.error('❌ DEBUG: Error code:', authError.code);
                 console.error('❌ DEBUG: Error message:', authError.message);
             }
-        } else if (!deleteUser) {
-            console.error('deleteUser function not initialized');
         } else {
             console.log('🔍 DEBUG: No authUid found for this teacher');
         }
