@@ -185,19 +185,20 @@ export async function removeTeacher(teacherId) {
         // 3. Delete the teacher from Firestore
         await deleteDoc(teacherRef);
         
-        // 4. Delete the teacher's Auth account using Super Admin session
+        // 4. Delete the teacher's Auth account using HTTP endpoint
         let authDeleted = false;
         if (teacherData.authUid) {
             console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
-            console.log('🔍 DEBUG: Super Admin email:', superAdminAuth.currentUser?.email);
             
             try {
-                const result = await callDeleteUser(teacherData.authUid);
-                console.log('✅ DEBUG: deleteUser result:', result);
-                authDeleted = true;
+                const response = await fetch(`https://us-central1-vikash-classes-c98f8.cloudfunctions.net/testDeleteUser?uid=${teacherData.authUid}`);
+                const result = await response.text();
+                console.log('✅ Delete result:', result);
+                if (result.includes('successfully')) {
+                    authDeleted = true;
+                }
             } catch (authError) {
-                console.error('❌ DEBUG: deleteUser error:', authError);
-                console.error('❌ DEBUG: Error message:', authError.message);
+                console.error('❌ DELETE error:', authError);
             }
         } else {
             console.log('🔍 DEBUG: No authUid found for this teacher');
@@ -225,7 +226,7 @@ export async function removeTeacher(teacherId) {
         if (authDeleted) {
             message += `\nAuth account deleted`;
         } else if (teacherData.authUid) {
-            message += `\nNote: Auth account could not be deleted automatically. Please delete manually from Firebase Console.`;
+            message += `\nNote: Auth account could not be deleted automatically.`;
         }
         
         showToast(message, 'success');
@@ -237,6 +238,7 @@ export async function removeTeacher(teacherId) {
         return false;
     }
 }
+
 
 // Load all classes for a specific teacher
 export async function loadTeacherClasses(teacherId) {
