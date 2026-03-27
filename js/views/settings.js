@@ -302,7 +302,7 @@ async function deleteAccount() {
         
         showToast('Deleting account...', 'info');
         
-        // Delete attempts
+        // 1. Delete all attempts
         const attemptsSnapshot = await db.collection('attempts')
             .where('userId', '==', userId)
             .get();
@@ -313,13 +313,28 @@ async function deleteAccount() {
                 batch.delete(doc.ref);
             });
             await batch.commit();
+            console.log(`✅ Deleted ${attemptsSnapshot.size} attempts`);
         }
         
-        // Delete user document
-        await db.collection('users').doc(userId).delete();
+        // 2. Remove student from all classes they are enrolled in
+        const classesSnapshot = await db.collection('classes')
+            .where('enrolledStudents', 'array-contains', userId)
+            .get();
         
-        // Delete auth account
+        for (const classDoc of classesSnapshot.docs) {
+            const classData = classDoc.data();
+            const updatedStudents = (classData.enrolledStudents || []).filter(id => id !== userId);
+            await classDoc.ref.update({ enrolledStudents: updatedStudents });
+            console.log(`✅ Removed student from class: ${classDoc.id}`);
+        }
+        
+        // 3. Delete user document
+        await db.collection('users').doc(userId).delete();
+        console.log('✅ User document deleted');
+        
+        // 4. Delete auth account
         await user.delete();
+        console.log('✅ Auth account deleted');
         
         localStorage.removeItem('darkMode');
         
@@ -338,7 +353,6 @@ async function deleteAccount() {
         renderSettings();
     }
 }
-
 
 // Make globally available
 window.setDarkMode = setDarkMode;
