@@ -6,7 +6,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebas
 import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { generateRandomCode, showToast } from './utils.js';
-import { app as superAdminApp } from './auth.js';  // Import the app from auth.js
+import { auth as superAdminAuth } from './auth.js';  // Import the auth instance directly
 
 // Firebase config
 const firebaseConfig = {
@@ -23,11 +23,14 @@ const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
 const teacherAuth = getAuth(teacherApp);
 const db = getFirestore(teacherApp);
 
-// Get the Super Admin's app and create functions instance
-const superAdminFunctions = getFunctions(superAdminApp);
-const deleteUser = httpsCallable(superAdminFunctions, 'deleteUser');
+// Use the Super Admin's auth to call the Cloud Function
+// We need to ensure the token is passed - httpsCallable will use the auth from the app
+// So we need to create functions instance with the same app that has the Super Admin session
+// Since superAdminAuth is from the default app, we use getFunctions with no argument to use the default app
+const defaultFunctions = getFunctions(); // This uses the default app (which has Super Admin)
+const deleteUser = httpsCallable(defaultFunctions, 'deleteUser');
 
-console.log('Super Admin functions ready:', !!superAdminFunctions);
+console.log('Super Admin logged in:', superAdminAuth.currentUser?.email);
 console.log('deleteUser ready:', !!deleteUser);
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
@@ -164,6 +167,7 @@ export async function removeTeacher(teacherId) {
         let authDeleted = false;
         if (teacherData.authUid && deleteUser) {
             console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
+            console.log('🔍 DEBUG: Super Admin email:', superAdminAuth.currentUser?.email);
             
             try {
                 const result = await deleteUser({ uid: teacherData.authUid });
