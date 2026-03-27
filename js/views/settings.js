@@ -276,7 +276,6 @@ function cancelDelete() {
     }
 }
 
-
 async function deleteAccount() {
     try {
         // Initialize Firebase first
@@ -303,7 +302,7 @@ async function deleteAccount() {
         
         showToast('Deleting account...', 'info');
         
-        // 1. Delete all quiz attempts
+        // Delete attempts
         const attemptsSnapshot = await db.collection('attempts')
             .where('userId', '==', userId)
             .get();
@@ -314,35 +313,17 @@ async function deleteAccount() {
                 batch.delete(doc.ref);
             });
             await batch.commit();
-            console.log(`✅ Deleted ${attemptsSnapshot.size} attempts`);
         }
         
-        // 2. Remove student from all classes they are enrolled in
-        const classesSnapshot = await db.collection('classes')
-            .where('enrolledStudents', 'array-contains', userId)
-            .get();
-        
-        for (const classDoc of classesSnapshot.docs) {
-            const classData = classDoc.data();
-            const updatedStudents = (classData.enrolledStudents || []).filter(id => id !== userId);
-            await classDoc.ref.update({ enrolledStudents: updatedStudents });
-            console.log(`✅ Removed student from class: ${classDoc.id}`);
-        }
-        
-        // 3. Delete the user document from Firestore
+        // Delete user document
         await db.collection('users').doc(userId).delete();
-        console.log('✅ User document deleted');
         
-        // 4. Delete the Auth account
+        // Delete auth account
         await user.delete();
-        console.log('✅ Auth account deleted');
         
-        // 5. Clear local storage
         localStorage.removeItem('darkMode');
         
         showToast('Account deleted successfully', 'success');
-        
-        // 6. Redirect to login
         renderLogin();
         
     } catch (error) {
