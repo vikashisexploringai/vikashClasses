@@ -241,6 +241,8 @@ async function handleRegister() {
         }
         
         await db.collection('users').doc(user.uid).set(userData);
+        console.log('User document written to Firestore');
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         showToast('Account created successfully!', 'success');
         

@@ -23,52 +23,79 @@ function setupAuthListener() {
             return;
         }
         
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                console.log('User signed in:', user.email);
-                
-                try {
-                    // Check if user exists in students collection (users)
-                    const userDoc = await db.collection('users').doc(user.uid).get();
-                    
-                    if (!userDoc.exists) {
-                        // User is not a student (might be teacher)
+        // js/auth/auth.js - Updated auth state listener
+
+auth.onAuthStateChanged(async (user) => {
+    if (user) {
+        console.log('User signed in:', user.email);
+        
+        // Check if user exists in students collection
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (!userDoc.exists) {
+            // Check if this is a brand new user (created within last 5 seconds)
+            const creationTime = user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
+            const isNewUser = creationTime && (Date.now() - creationTime.getTime() < 5000);
+            
+            if (isNewUser) {
+                // New user, wait a moment for Firestore to be written
+                console.log('New user detected, waiting for Firestore document...');
+                setTimeout(async () => {
+                    const retryDoc = await db.collection('users').doc(user.uid).get();
+                    if (retryDoc.exists) {
+                        updateState({
+                            currentUser: {
+                                uid: user.uid,
+                                email: user.email,
+                                displayName: user.displayName,
+                                ...retryDoc.data()
+                            }
+                        });
+                        await loadUserProgress(user.uid);
+                        if (['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
+                            renderClassSelection();
+                        }
+                    } else {
                         console.log('User not found in students collection, signing out');
                         await auth.signOut();
                         showToast('This account is not registered as a student. Please use the teacher dashboard.', 'error');
                         renderLogin();
-                        return;
                     }
-                    
-                    updateState({
-                        currentUser: {
-                            uid: user.uid,
-                            email: user.email,
-                            displayName: user.displayName,
-                            ...userDoc.data()
-                        }
-                    });
-                    
-                    await loadUserProgress(user.uid);
-                    
-                    if (['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
-                        renderClassSelection();
-                    }
-                } catch (error) {
-                    console.error('Error checking user document:', error);
-                    await auth.signOut();
-                    showToast('Error validating account. Please try again.', 'error');
-                    renderLogin();
-                }
+                }, 2000);
+                return;
             } else {
-                console.log('User signed out');
-                resetState();
-                
-                if (!['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
-                    renderLogin();
-                }
+                // Existing user without document - not a student
+                console.log('User not found in students collection, signing out');
+                await auth.signOut();
+                showToast('This account is not registered as a student. Please use the teacher dashboard.', 'error');
+                renderLogin();
+                return;
+            }
+        }
+        
+        updateState({
+            currentUser: {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                ...userDoc.data()
             }
         });
+        
+        await loadUserProgress(user.uid);
+        
+        if (['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
+            renderClassSelection();
+        }
+    } else {
+        console.log('User signed out');
+        resetState();
+        
+        if (!['login', 'register', 'forgotUsername', 'forgotPassword', 'resetPassword'].includes(AppState.currentView)) {
+            renderLogin();
+        }
+    }
+});
         
         authStateListenerInitialized = true;
     }).catch(error => {
