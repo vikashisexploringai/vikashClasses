@@ -159,18 +159,23 @@ export async function removeTeacher(teacherId) {
         
         // 4. Delete the teacher's Auth account if they have one
         let authDeleted = false;
-        if (teacherData.authUid) {
-            console.log('Attempting to delete Auth user with UID:', teacherData.authUid);
-    console.log('deleteUser function:', deleteUser);
-            try {
-                const result = await deleteUser({ uid: teacherData.authUid });
-        console.log('Delete result:', result);
+       if (teacherData.authUid) {
+    console.log('🔍 DEBUG: Found authUid:', teacherData.authUid);
+    console.log('🔍 DEBUG: deleteUser function:', typeof deleteUser);
+    console.log('🔍 DEBUG: Calling deleteUser...');
+    
+    try {
+        const result = await deleteUser({ uid: teacherData.authUid });
+        console.log('✅ DEBUG: deleteUser result:', result);
         authDeleted = true;
-            } catch (authError) {
-                console.error('Error deleting Auth user:', authError);
-                // Continue with Firestore deletion even if Auth fails
-            }
-        }
+    } catch (authError) {
+        console.error('❌ DEBUG: deleteUser error:', authError);
+        console.error('❌ DEBUG: Error code:', authError.code);
+        console.error('❌ DEBUG: Error message:', authError.message);
+    }
+} else {
+    console.log('🔍 DEBUG: No authUid found for this teacher');
+}
         
         // 5. Remove from superAdmin settings
         try {
