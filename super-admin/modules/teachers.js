@@ -1,6 +1,8 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation (using separate auth instance)
 
+import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+import { getFunctions } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
@@ -21,6 +23,8 @@ const firebaseConfig = {
 const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
 const teacherAuth = getAuth(teacherApp);
 const db = getFirestore(teacherApp);
+const functions = getFunctions(teacherApp);
+const deleteUser = httpsCallable(functions, 'deleteUser');
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
@@ -133,14 +137,45 @@ export async function removeTeacher(teacherId) {
         const teacherDoc = await getDoc(teacherRef);
         const teacherData = teacherDoc.data();
         
+        if (!teacherData) {
+            showToast('Teacher not found', 'error');
+            return false;
+        }
+        
+        // 1. Get all classes for this teacher
+        const classesRef = collection(db, 'classes');
+        const classesQuery = query(classesRef, where('teacherId', '==', teacherId));
+        const classesSnapshot = await getDocs(classesQuery);
+        
+        // 2. Delete all classes for this teacher
+        let classCount = 0;
+        for (const classDoc of classesSnapshot.docs) {
+            await deleteDoc(doc(db, 'classes', classDoc.id));
+            classCount++;
+        }
+        
+        // 3. Delete the teacher from Firestore
         await deleteDoc(teacherRef);
         
-        // Remove from superAdmin settings if it exists
+        // 4. Delete the teacher's Auth account if they have one
+        let authDeleted = false;
+        if (teacherData.authUid) {
+            try {
+                await deleteUser({ uid: teacherData.authUid });
+                authDeleted = true;
+                console.log('Auth user deleted:', teacherData.authUid);
+            } catch (authError) {
+                console.error('Error deleting Auth user:', authError);
+                // Continue with Firestore deletion even if Auth fails
+            }
+        }
+        
+        // 5. Remove from superAdmin settings
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
             
-            if (settingsDoc.exists && teacherData?.teacherCode) {
+            if (settingsDoc.exists && teacherData.teacherCode) {
                 const teacherCodes = settingsDoc.data().teacherCodes || {};
                 delete teacherCodes[teacherData.teacherCode];
                 await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
@@ -149,11 +184,23 @@ export async function removeTeacher(teacherId) {
             console.warn('Could not update superAdmin settings:', settingsError);
         }
         
-        showToast('Teacher removed successfully', 'success');
+        // Build success message
+        let message = `Teacher removed successfully`;
+        if (classCount > 0) {
+            message += `\nDeleted ${classCount} class(es)`;
+        }
+        if (authDeleted) {
+            message += `\nAuth account deleted`;
+        } else if (teacherData.authUid) {
+            message += `\nNote: Auth account could not be deleted automatically. Please delete manually from Firebase Console.`;
+        }
+        
+        showToast(message, 'success');
         return true;
+        
     } catch (error) {
         console.error('Error removing teacher:', error);
-        showToast('Failed to remove teacher', 'error');
+        showToast('Failed to remove teacher: ' + error.message, 'error');
         return false;
     }
 }
