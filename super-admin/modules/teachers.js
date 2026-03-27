@@ -55,6 +55,7 @@ export async function loadTeachers() {
 export async function addTeacher(email, displayName) {
     const teacherCode = generateTeacherCode();
     const tempPassword = generateTempPassword();
+    let authUid = null;
     
     try {
         // Check if teacher already exists in Firestore
@@ -70,33 +71,34 @@ export async function addTeacher(email, displayName) {
         // Create teacher user using the separate auth instance
         try {
             const userCredential = await createUserWithEmailAndPassword(teacherAuth, email, tempPassword);
-            console.log('Teacher user created:', userCredential.user.uid);
+            authUid = userCredential.user.uid;
+            console.log('Teacher user created with UID:', authUid);
         } catch (authError) {
             if (authError.code === 'auth/email-already-in-use') {
                 showToast('Email already has an Auth account', 'info');
+                // Try to get existing user's UID (requires admin SDK, so we'll skip for now)
             } else {
                 throw authError;
             }
         }
         
-        // Add teacher to Firestore
+        // Add teacher to Firestore - INCLUDING authUid
         await addDoc(collection(db, 'teachers'), {
             email: email,
             displayName: displayName || email.split('@')[0],
             teacherCode: teacherCode,
             createdAt: new Date(),
             isActive: true,
-            hasSetupPassword: false
+            hasSetupPassword: false,
+            authUid: authUid  // <-- ADD THIS LINE
         });
         
-        // Also store in superAdmin settings for validation (create if doesn't exist)
+        // Also store in superAdmin settings...
         try {
             const settingsRef = doc(db, 'superAdmin', 'settings');
             const settingsDoc = await getDoc(settingsRef);
             
             let teacherCodes = {};
-            
-            // If document exists, get existing teacherCodes
             if (settingsDoc.exists) {
                 const data = settingsDoc.data();
                 if (data && data.teacherCodes) {
@@ -104,21 +106,19 @@ export async function addTeacher(email, displayName) {
                 }
             }
             
-            // Add the new teacher code
             teacherCodes[teacherCode] = {
                 email: email,
                 displayName: displayName || email.split('@')[0],
                 createdAt: new Date(),
                 used: false,
-                tempPassword: tempPassword
+                tempPassword: tempPassword,
+                authUid: authUid  // <-- ALSO STORE HERE FOR REFERENCE
             };
             
-            // Save back to Firestore (creates document if it doesn't exist)
             await setDoc(settingsRef, { teacherCodes: teacherCodes }, { merge: true });
             
         } catch (settingsError) {
             console.warn('Could not update superAdmin settings:', settingsError);
-            // Non-critical error, continue
         }
         
         showToast(`Teacher added! Code: ${teacherCode}\nTemporary password: ${tempPassword}`, 'success');
@@ -130,6 +130,7 @@ export async function addTeacher(email, displayName) {
         return false;
     }
 }
+
 
 export async function removeTeacher(teacherId) {
     try {
