@@ -146,6 +146,7 @@ async function handleRegister() {
     clearInlineMessages();
     let hasError = false;
     
+    // Validation
     if (!fullName) { showInlineMessage('fullName', 'Please enter full name'); hasError = true; }
     if (!email) { showInlineMessage('email', 'Please enter email address'); hasError = true; }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -177,7 +178,6 @@ async function handleRegister() {
         
         // Check if username already exists
         const usernameSnapshot = await db.collection('users').where('username', '==', username).get();
-        
         if (!usernameSnapshot.empty) {
             showInlineMessage('username', 'Username already taken. Please choose another.');
             registerBtn.textContent = 'Create Account';
@@ -188,16 +188,7 @@ async function handleRegister() {
         // Check if email is already a teacher
         const teacherCheck = await db.collection('teachers').where('email', '==', email).get();
         if (!teacherCheck.empty) {
-            showInlineMessage('email', 'This email is registered as a teacher. Please use teacher login.', 'error');
-            registerBtn.textContent = 'Create Account';
-            registerBtn.disabled = false;
-            return;
-        }
-        
-        // Check if email already in students
-        const studentCheck = await db.collection('users').where('email', '==', email).get();
-        if (!studentCheck.empty) {
-            showInlineMessage('email', 'Email already registered. Please login.', 'error');
+            showInlineMessage('email', 'This email is registered as a teacher. Please use teacher login.');
             registerBtn.textContent = 'Create Account';
             registerBtn.disabled = false;
             return;
@@ -209,7 +200,7 @@ async function handleRegister() {
             const teacherQuery = await db.collection('teachers').where('teacherCode', '==', teacherCode.toUpperCase()).get();
             
             if (teacherQuery.empty) {
-                showInlineMessage('teacherCode', 'Invalid teacher code. Please check with your teacher.', 'error');
+                showInlineMessage('teacherCode', 'Invalid teacher code. Please check with your teacher.');
                 registerBtn.textContent = 'Create Account';
                 registerBtn.disabled = false;
                 return;
@@ -220,7 +211,7 @@ async function handleRegister() {
         
         registerBtn.textContent = 'Creating Account...';
         
-        // Create Firebase Auth user using compat SDK
+        // Create Firebase Auth user - this will throw if email already exists
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
@@ -242,7 +233,7 @@ async function handleRegister() {
             overall: { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 }
         };
         
-        // Add teacher code if provided - using currentTeacher fields to match classSelection.js
+        // Add teacher code if provided
         if (teacherCode && teacherId) {
             userData.currentTeacherCode = teacherCode.toUpperCase();
             userData.currentTeacherId = teacherId;
@@ -256,8 +247,13 @@ async function handleRegister() {
     } catch (error) {
         console.error('Registration error:', error);
         
+        // Handle specific Firebase Auth errors
         if (error.code === 'auth/email-already-in-use') {
-            showInlineMessage('email', 'Email already registered. Please use a different email or login.');
+            showInlineMessage('email', 'This email is already registered. Please login or use a different email.');
+        } else if (error.code === 'auth/weak-password') {
+            showInlineMessage('password', 'Password is too weak. Use at least 6 characters.');
+        } else if (error.code === 'auth/invalid-email') {
+            showInlineMessage('email', 'Please enter a valid email address.');
         } else {
             showToast('Registration failed: ' + error.message, 'error');
         }
@@ -267,6 +263,7 @@ async function handleRegister() {
         registerBtn.disabled = false;
     }
 }
+
 
 // Make functions globally available
 window.renderRegister = renderRegister;
