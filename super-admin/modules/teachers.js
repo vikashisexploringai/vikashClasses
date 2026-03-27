@@ -1,12 +1,12 @@
 // super-admin/modules/teachers.js
 // Teacher management with Auth account creation (using separate auth instance)
 
-import { httpsCallable, getFunctions } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
+import { httpsCallable } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 import { generateRandomCode, showToast } from './utils.js';
-import { auth as mainAuth } from './auth.js';
+import { functions as adminFunctions } from './auth.js';  // Import the functions from auth.js
 
 // Firebase config
 const firebaseConfig = {
@@ -24,9 +24,8 @@ const teacherApp = initializeApp(firebaseConfig, 'teacherApp');
 const teacherAuth = getAuth(teacherApp);
 const db = getFirestore(teacherApp);
 
-// Use MAIN auth (Super Admin) for Cloud Functions
-const mainFunctions = getFunctions();  // This uses the default app (Super Admin session)
-const deleteUser = httpsCallable(mainFunctions, 'deleteUser');
+// Use the functions from auth.js (Super Admin session) for Cloud Functions
+const deleteUser = httpsCallable(adminFunctions, 'deleteUser');
 
 const TEACHER_CODE_PREFIX = 'TEACH-';
 
@@ -78,7 +77,6 @@ export async function addTeacher(email, displayName) {
         } catch (authError) {
             if (authError.code === 'auth/email-already-in-use') {
                 showToast('Email already has an Auth account', 'info');
-                // Try to get existing user's UID (requires admin SDK, so we'll skip for now)
             } else {
                 throw authError;
             }
