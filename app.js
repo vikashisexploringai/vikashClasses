@@ -1824,40 +1824,50 @@ async function handleChangePassword() {
 }
 
 function confirmDeleteAccount() {
-    if (!auth.currentUser) {
-        showToast('Please login first', 'error');
-        renderLogin();
-        return;
-    }
-    
-    const content = document.getElementById('main-content');
-    const previousContent = content.innerHTML;
-    
-    const deleteModalHTML = `
-        <div class="delete-modal-overlay">
-            <div class="delete-modal">
-                <div class="delete-modal-icon">⚠️</div>
-                <h3 class="delete-modal-title">Delete Account?</h3>
-                <p class="delete-modal-message">
-                    This action is <strong>PERMANENT</strong> and cannot be undone.<br>
-                    All your data will be lost:
-                </p>
-                <ul class="delete-modal-list">
-                    <li>• Profile information</li>
-                    <li>• All quiz attempts</li>
-                    <li>• Progress and statistics</li>
-                </ul>
-                <div class="delete-modal-buttons">
-                    <button class="delete-modal-cancel" onclick="cancelDelete()">Cancel</button>
-                    <button class="delete-modal-confirm" onclick="deleteAccount()">Delete Forever</button>
+    import('../firebase/firebaseInit.js').then(async ({ initFirebase, getAuth }) => {
+        await initFirebase();
+        const auth = getAuth();
+        const user = auth ? auth.currentUser : null;
+        
+        if (!user) {
+            showToast('Please login first', 'error');
+            renderLogin();
+            return;
+        }
+        
+        const content = document.getElementById('main-content');
+        const previousContent = content.innerHTML;
+        
+        const deleteModalHTML = `
+            <div class="delete-modal-overlay">
+                <div class="delete-modal">
+                    <div class="delete-modal-icon">⚠️</div>
+                    <h3 class="delete-modal-title">Delete Account?</h3>
+                    <p class="delete-modal-message">
+                        This action is <strong>PERMANENT</strong> and cannot be undone.
+                    </p>
+                    <ul class="delete-modal-list">
+                        <li>• All your quiz attempts will be deleted</li>
+                        <li>• You will be removed from all classes</li>
+                        <li>• Your profile information will be deleted</li>
+                        <li>• Your account will be permanently removed</li>
+                    </ul>
+                    <div class="delete-modal-buttons">
+                        <button class="delete-modal-cancel" onclick="window.cancelDelete()">Cancel</button>
+                        <button class="delete-modal-confirm" onclick="window.deleteAccount()">Delete Forever</button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    
-    window.previousContent = previousContent;
-    content.innerHTML = deleteModalHTML;
+        `;
+        
+        window.previousContent = previousContent;
+        content.innerHTML = deleteModalHTML;
+    }).catch(error => {
+        console.error('Firebase init error:', error);
+        showToast('Failed to load', 'error');
+    });
 }
+
 
 window.cancelDelete = function() {
     const content = document.getElementById('main-content');
@@ -1869,18 +1879,32 @@ window.cancelDelete = function() {
 };
 
 async function deleteAccount() {
-    const user = auth.currentUser;
-    if (!user) {
-        showToast('No user logged in', 'error');
-        renderLogin();
-        return;
-    }
-    
-    const userId = user.uid;
-    
     try {
+        // Initialize Firebase first
+        const { initFirebase, getAuth, getDb } = await import('../firebase/firebaseInit.js');
+        await initFirebase();
+        
+        const auth = getAuth();
+        const db = getDb();
+        
+        if (!auth || !db) {
+            showToast('Firebase not initialized', 'error');
+            return;
+        }
+        
+        const user = auth.currentUser;
+        
+        if (!user) {
+            showToast('No user logged in', 'error');
+            renderLogin();
+            return;
+        }
+        
+        const userId = user.uid;
+        
         showToast('Deleting account...', 'info');
         
+        // 1. Delete all quiz attempts
         const attemptsSnapshot = await db.collection('attempts')
             .where('userId', '==', userId)
             .get();
@@ -1891,14 +1915,35 @@ async function deleteAccount() {
                 batch.delete(doc.ref);
             });
             await batch.commit();
+            console.log(`✅ Deleted ${attemptsSnapshot.size} attempts`);
         }
         
-        await db.collection('users').doc(userId).delete();
-        await user.delete();
+        // 2. Remove student from all classes they are enrolled in
+        const classesSnapshot = await db.collection('classes')
+            .where('enrolledStudents', 'array-contains', userId)
+            .get();
         
+        for (const classDoc of classesSnapshot.docs) {
+            const classData = classDoc.data();
+            const updatedStudents = (classData.enrolledStudents || []).filter(id => id !== userId);
+            await classDoc.ref.update({ enrolledStudents: updatedStudents });
+            console.log(`✅ Removed student from class: ${classDoc.id}`);
+        }
+        
+        // 3. Delete the user document from Firestore
+        await db.collection('users').doc(userId).delete();
+        console.log('✅ User document deleted');
+        
+        // 4. Delete the Auth account
+        await user.delete();
+        console.log('✅ Auth account deleted');
+        
+        // 5. Clear local storage
         localStorage.removeItem('darkMode');
         
         showToast('Account deleted successfully', 'success');
+        
+        // 6. Redirect to login
         renderLogin();
         
     } catch (error) {
@@ -1913,6 +1958,7 @@ async function deleteAccount() {
         renderSettings();
     }
 }
+
 
 // ===== MAKE FUNCTIONS GLOBALLY AVAILABLE =====
 window.renderLogin = renderLogin;

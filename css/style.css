@@ -2047,3 +2047,24 @@ body.dark-mode .toggle-btn.active {
 .btn-secondary:hover {
     background: #475569;
 }
+
+.delete-modal-list {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    list-style: none;
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.8;
+}
+
+.delete-modal-list li {
+    color: #ef4444;
+}
+
+/* Dark mode support */
+body.dark-mode .delete-modal-list {
+    background: #1e293b;
+    color: #cbd5e1;
+}
