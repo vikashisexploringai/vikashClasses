@@ -242,9 +242,14 @@ function confirmDeleteAccount() {
                     <div class="delete-modal-icon">⚠️</div>
                     <h3 class="delete-modal-title">Delete Account?</h3>
                     <p class="delete-modal-message">
-                        This action is <strong>PERMANENT</strong> and cannot be undone.<br>
-                        All your data will be lost.
+                        This action is <strong>PERMANENT</strong> and cannot be undone.
                     </p>
+                    <ul class="delete-modal-list">
+                        <li>• All your quiz attempts will be deleted</li>
+                        <li>• You will be removed from all classes</li>
+                        <li>• Your profile information will be deleted</li>
+                        <li>• Your account will be permanently removed</li>
+                    </ul>
                     <div class="delete-modal-buttons">
                         <button class="delete-modal-cancel" onclick="window.cancelDelete()">Cancel</button>
                         <button class="delete-modal-confirm" onclick="window.deleteAccount()">Delete Forever</button>
@@ -259,7 +264,8 @@ function confirmDeleteAccount() {
         console.error('Firebase init error:', error);
         showToast('Failed to load', 'error');
     });
-}           
+}
+
 
 function cancelDelete() {
     const content = document.getElementById('main-content');
