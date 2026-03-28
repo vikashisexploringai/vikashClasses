@@ -7,7 +7,6 @@ import { updateBottomNav } from '../ui/bottomNav.js';
 import { showToast } from '../ui/toast.js';
 import { renderSubjects } from './subjects.js';
 import { getAuth, getDb, initFirebase } from '../firebase/firebaseInit.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 let currentStudentId = null;
 let currentStudentData = null;
@@ -64,15 +63,32 @@ async function renderClassSelection() {
             .get();
         
         const allTeacherClasses = [];
-        classesQuery.forEach(doc => {
+        for (const doc of classesQuery.docs) {
+            const classData = doc.data();
+            
+            // Fetch subjects for this class from subjects collection
+            const subjectsSnapshot = await db.collection('subjects')
+                .where('classId', '==', doc.id)
+                .get();
+            
+            const subjects = [];
+            subjectsSnapshot.forEach(subDoc => {
+                const subject = subDoc.data();
+                subjects.push({
+                    id: subject.subjectId,
+                    name: subject.name,
+                    icon: subject.icon
+                });
+            });
+            
             allTeacherClasses.push({
                 id: doc.id,
-                name: doc.data().name,
-                description: doc.data().description,
-                subjects: doc.data().subjects || [],
-                enrollmentCode: doc.data().enrollmentCode
+                name: classData.name,
+                description: classData.description,
+                subjects: subjects,
+                enrollmentCode: classData.enrollmentCode
             });
-        });
+        }
         currentTeacherClasses = allTeacherClasses;
         
         // Get enrolled classes from student data
@@ -120,17 +136,64 @@ function renderNoTeacherView() {
     }
 }
 
-function renderTeacherView(teacher, enrolledClasses, availableClasses) {
+async function renderTeacherView(teacher, enrolledClasses, availableClasses) {
     const content = document.getElementById('main-content');
+    const db = getDb();
+    
+    // Fetch subjects for enrolled classes
+    const enrolledWithSubjects = [];
+    for (const cls of enrolledClasses) {
+        const subjectsSnapshot = await db.collection('subjects')
+            .where('classId', '==', cls.id)
+            .get();
+        
+        const subjects = [];
+        subjectsSnapshot.forEach(doc => {
+            const subject = doc.data();
+            subjects.push({
+                id: subject.subjectId,
+                name: subject.name,
+                icon: subject.icon
+            });
+        });
+        
+        enrolledWithSubjects.push({
+            ...cls,
+            subjects: subjects
+        });
+    }
+    
+    // Fetch subjects for available classes
+    const availableWithSubjects = [];
+    for (const cls of availableClasses) {
+        const subjectsSnapshot = await db.collection('subjects')
+            .where('classId', '==', cls.id)
+            .get();
+        
+        const subjects = [];
+        subjectsSnapshot.forEach(doc => {
+            const subject = doc.data();
+            subjects.push({
+                id: subject.subjectId,
+                name: subject.name,
+                icon: subject.icon
+            });
+        });
+        
+        availableWithSubjects.push({
+            ...cls,
+            subjects: subjects
+        });
+    }
     
     // Enrolled Classes Section
     let enrolledHtml = '';
-    if (enrolledClasses.length === 0) {
+    if (enrolledWithSubjects.length === 0) {
         enrolledHtml = '<p style="text-align: center; color: #64748b; padding: 20px;">No enrolled classes yet. Use enrollment codes to join classes.</p>';
     } else {
         enrolledHtml = `
             <div class="classes-grid">
-                ${enrolledClasses.map(cls => `
+                ${enrolledWithSubjects.map(cls => `
                     <div class="class-card" onclick="window.selectClass('${cls.id}')">
                         <div class="class-header" style="border-left-color: #22c55e;">
                             <span class="class-name">${escapeHtml(cls.name)}</span>
@@ -139,8 +202,7 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
                         <div class="class-description">${escapeHtml(cls.description || 'No description')}</div>
                         <div class="class-subjects">
                             ${cls.subjects?.map(s => {
-                                const subject = AppState.config?.subjects.find(sub => sub.id === s);
-                                return `<span class="subject-tag">${subject?.icon} ${subject?.name}</span>`;
+                                return `<span class="subject-tag">${s.icon} ${s.name}</span>`;
                             }).join('') || '<span>No subjects</span>'}
                         </div>
                         <div style="margin-top: 12px;">
@@ -154,12 +216,12 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
     
     // Available Classes Section
     let availableHtml = '';
-    if (availableClasses.length === 0) {
+    if (availableWithSubjects.length === 0) {
         availableHtml = '<p style="text-align: center; color: #64748b; padding: 20px;">No available classes at the moment.</p>';
     } else {
         availableHtml = `
             <div class="classes-grid">
-                ${availableClasses.map(cls => `
+                ${availableWithSubjects.map(cls => `
                     <div class="class-card available-class" onclick="event.stopPropagation(); window.showEnrollModal('${cls.id}', '${escapeHtml(cls.name)}')">
                         <div class="class-header" style="border-left-color: #f59e0b;">
                             <span class="class-name">${escapeHtml(cls.name)}</span>
@@ -168,8 +230,7 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
                         <div class="class-description">${escapeHtml(cls.description || 'No description')}</div>
                         <div class="class-subjects">
                             ${cls.subjects?.map(s => {
-                                const subject = AppState.config?.subjects.find(sub => sub.id === s);
-                                return `<span class="subject-tag">${subject?.icon} ${subject?.name}</span>`;
+                                return `<span class="subject-tag">${s.icon} ${s.name}</span>`;
                             }).join('') || '<span>No subjects</span>'}
                         </div>
                         <div style="margin-top: 12px;">
@@ -303,7 +364,6 @@ window.showEnrollModal = (classId, className) => {
 };
 
 // Enroll in class
-// Enroll in class
 async function enrollInClass(classId, enrollmentCode) {
     const db = getDb();
     
@@ -331,7 +391,7 @@ async function enrollInClass(classId, enrollmentCode) {
             return true;
         }
         
-        // Add class to enrolledClasses
+        // Add class to student's enrolledClasses
         const updatedEnrolledClasses = [...(currentStudentData.enrolledClasses || []), {
             id: classId,
             name: classData.name,
@@ -344,6 +404,12 @@ async function enrollInClass(classId, enrollmentCode) {
             enrolledClasses: updatedEnrolledClasses
         });
         
+        // ALSO ADD STUDENT TO CLASS'S ENROLLED STUDENTS ARRAY
+        const updatedEnrolledStudents = [...(classData.enrolledStudents || []), currentStudentId];
+        await classRef.update({
+            enrolledStudents: updatedEnrolledStudents
+        });
+        
         showToast(`Successfully enrolled in ${classData.name}!`, 'success');
         return true;
         
@@ -353,7 +419,6 @@ async function enrollInClass(classId, enrollmentCode) {
         return false;
     }
 }
-
 
 function showTeacherCodeModal(action) {
     const modal = document.getElementById('teacherCodeModal');
@@ -432,14 +497,31 @@ async function linkTeacher(teacherCode) {
             .get();
         
         const enrolledClasses = [];
-        classesQuery.forEach(doc => {
+        for (const doc of classesQuery.docs) {
+            const classData = doc.data();
+            
+            // Fetch subjects for this class
+            const subjectsSnapshot = await db.collection('subjects')
+                .where('classId', '==', doc.id)
+                .get();
+            
+            const subjects = [];
+            subjectsSnapshot.forEach(subDoc => {
+                const subject = subDoc.data();
+                subjects.push({
+                    id: subject.subjectId,
+                    name: subject.name,
+                    icon: subject.icon
+                });
+            });
+            
             enrolledClasses.push({
                 id: doc.id,
-                name: doc.data().name,
-                description: doc.data().description,
-                subjects: doc.data().subjects || []
+                name: classData.name,
+                description: classData.description,
+                subjects: subjects
             });
-        });
+        }
         
         await db.collection('users').doc(currentStudentId).update({
             currentTeacherId: teacherDoc.id,
@@ -483,4 +565,4 @@ window.selectClass = async (classId) => {
 
 window.renderClassSelection = renderClassSelection;
 
-export { renderClassSelection };
+export { renderClassSelection };    
