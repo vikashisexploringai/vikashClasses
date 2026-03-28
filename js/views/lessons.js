@@ -47,7 +47,7 @@ async function renderLessons() {
             content.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <p>No lessons available yet.</p>
-                    <button class="back-button" onclick="renderSubjects()">← Back to Subjects</button>
+                    <button class="back-button" onclick="window.renderSubjects()">← Back to Subjects</button>
                 </div>
             `;
             updateBottomNav('subjects');
@@ -66,10 +66,9 @@ async function renderLessons() {
         // Get student's attempts for these lessons
         const lessonIds = lessons.map(l => l.id);
         
-        // Get attempts (Firestore doesn't support 'in' with empty array)
+        // Get attempts
         let attempts = [];
         if (lessonIds.length > 0) {
-            // Since Firestore has limits on 'in' queries, we'll fetch all attempts and filter
             const attemptsSnapshot = await db.collection('attempts')
                 .where('userId', '==', currentStudentId)
                 .get();
@@ -105,7 +104,7 @@ async function renderLessons() {
         content.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #ef4444;">
                 <p>Failed to load lessons</p>
-                <button class="back-button" onclick="renderSubjects()">← Back to Subjects</button>
+                <button class="back-button" onclick="window.renderSubjects()">← Back to Subjects</button>
             </div>
         `;
     }
@@ -184,7 +183,7 @@ function formatDate(date) {
 }
 
 // Start a specific lesson
-window.startLesson = async (lessonId) => {
+async function startLesson(lessonId) {
     const content = document.getElementById('main-content');
     content.innerHTML = '<div class="loading-spinner"></div>';
     
@@ -219,15 +218,15 @@ window.startLesson = async (lessonId) => {
         showToast('Failed to load lesson', 'error');
         renderLessons();
     }
-};
+}
 
 // Start test (random questions from all lessons)
-window.startTest = async () => {
+async function startTest() {
     const content = document.getElementById('main-content');
     content.innerHTML = '<div class="loading-spinner"></div>';
     
     const db = getDb();
-    const TEST_QUESTION_COUNT = 20; // You can make this configurable
+    const TEST_QUESTION_COUNT = 20;
     
     try {
         // Get all lessons for this subject
@@ -284,7 +283,7 @@ window.startTest = async () => {
         showToast('Failed to start test', 'error');
         renderLessons();
     }
-};
+}
 
 function escapeHtml(text) {
     if (!text) return text;
@@ -293,7 +292,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Make globally available
+// Make functions globally available on window
 window.startLesson = startLesson;
 window.startTest = startTest;
 window.renderLessons = renderLessons;
