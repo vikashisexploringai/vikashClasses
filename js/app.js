@@ -10,7 +10,7 @@ import { handleLogout } from './auth/logout.js';
 import { renderForgotPassword, handleSendResetEmail } from './auth/password.js';
 import { renderClassSelection } from './views/classSelection.js';
 import { renderSubjects, selectSubject } from './views/subjects.js';
-import { renderLessons, selectLesson, startTest } from './views/lessons.js';
+import { renderLessons, startLesson, startTest } from './views/lessons.js';
 import { renderProfile } from './views/profile.js';
 import { renderProgress } from './views/progress.js';
 import { renderSettings, setDarkMode, initDarkMode, renderChangePassword, handleChangePassword, confirmDeleteAccount, deleteAccount } from './views/settings.js';
