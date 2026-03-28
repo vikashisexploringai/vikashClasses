@@ -3,7 +3,7 @@
 
 import { initFirebase, isInitialized } from './firebase/firebaseInit.js';
 import { setupAuthListener } from './auth/auth.js';
-import { loadConfig, loadClassConfig } from './core/config.js';
+import { loadConfig } from './core/config.js';
 import { renderLogin } from './auth/login.js';
 import { renderRegister, handleRegister } from './auth/register.js';
 import { handleLogout } from './auth/logout.js';
