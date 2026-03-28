@@ -51,10 +51,21 @@ function showToast(message, type) {
     setTimeout(() => toast.remove(), 3000);
 }
 
-// Auth state listener
-// teacher/dashboard.js - Auth state listener
+// Reset login button function
+function resetLoginButton() {
+    if (loginBtn) {
+        loginBtn.textContent = 'Login';
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = '1';
+        loginBtn.style.cursor = 'pointer';
+    }
+}
 
+// Auth state listener
 onAuthStateChanged(auth, async (user) => {
+    // Reset login button whenever auth state changes
+    resetLoginButton();
+    
     if (user) {
         // Check if user exists in teachers collection
         const teacherQuery = query(collection(db, 'teachers'), where('email', '==', user.email));
@@ -89,11 +100,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-
-// Login
-// Login
-// Login
-// Login - add loading state
+// Login - with loading state
 loginBtn.addEventListener('click', async () => {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
@@ -114,6 +121,7 @@ loginBtn.addEventListener('click', async () => {
     loginBtn.textContent = 'Logging in...';
     loginBtn.disabled = true;
     loginBtn.style.opacity = '0.7';
+    loginBtn.style.cursor = 'wait';
     
     try {
         await signInWithEmailAndPassword(auth, email, password);
@@ -126,6 +134,7 @@ loginBtn.addEventListener('click', async () => {
         loginBtn.textContent = originalButtonText;
         loginBtn.disabled = false;
         loginBtn.style.opacity = '1';
+        loginBtn.style.cursor = 'pointer';
         
         // Handle error...
         if (error.code === 'auth/invalid-login-credentials') {
@@ -156,8 +165,6 @@ loginBtn.addEventListener('click', async () => {
         }
     }
 });
-
-
 
 // Forgot Password - Show Modal
 forgotPasswordLink.addEventListener('click', () => {
@@ -230,8 +237,6 @@ confirmResetBtn.addEventListener('click', async () => {
     }
 });
 
-
-// Logout
 // Logout
 logoutBtn.addEventListener('click', async () => {
     try {
@@ -242,7 +247,6 @@ logoutBtn.addEventListener('click', async () => {
         document.getElementById('password').value = '';
         
         // Remove autofill by adding a random attribute to form
-        const loginForm = document.getElementById('loginSection');
         const randomName = 'autocomplete-' + Math.random().toString(36).substring(2, 8);
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
@@ -254,6 +258,9 @@ logoutBtn.addEventListener('click', async () => {
         // Add a random name to prevent browser matching
         emailInput.setAttribute('name', randomName);
         passwordInput.setAttribute('name', randomName + '-pwd');
+        
+        // Reset login button just in case
+        resetLoginButton();
         
         // Show logout confirmation
         showToast('Logged out successfully', 'success');
@@ -366,7 +373,6 @@ confirmCreateBtn.addEventListener('click', async () => {
         confirmCreateBtn.style.opacity = '1';
     }
 });
-
 
 function generateRandomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
