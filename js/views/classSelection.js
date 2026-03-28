@@ -7,6 +7,7 @@ import { updateBottomNav } from '../ui/bottomNav.js';
 import { showToast } from '../ui/toast.js';
 import { renderSubjects } from './subjects.js';
 import { getAuth, getDb, initFirebase } from '../firebase/firebaseInit.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 let currentStudentId = null;
 let currentStudentData = null;
@@ -230,7 +231,6 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
         changeBtn.onmouseout = () => changeBtn.style.backgroundColor = '#64748b';
     }
 }
-
 
 // Show Enrollment Modal
 window.showEnrollModal = (classId, className) => {
