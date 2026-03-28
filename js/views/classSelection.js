@@ -192,18 +192,18 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
                     <div style="font-weight: 700; font-size: 20px;">${escapeHtml(teacher.displayName || teacher.email)}</div>
                     <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Code: <span style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${teacher.teacherCode}</span></div>
                 </div>
-                <div style="display: flex; gap: 12px;">
-                    <button id="refreshClassesBtn" style="background: #f1f5f9; color: #475569; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
-                        🔄 Refresh
-                    </button>
-                    <button id="changeTeacherCodeBtn" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
-                        🔄 Change Code
-                    </button>
-                </div>
+                <button id="changeTeacherCodeBtn" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                    🔄 Change Code
+                </button>
             </div>
         </div>
         
-        <h3 style="margin-bottom: 16px; font-size: 18px;">📚 My Classes</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 18px;">📚 My Classes</h3>
+            <button id="refreshClassesBtn" style="background: #f1f5f9; color: #475569; padding: 6px 14px; border: none; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s;">
+                🔄 Refresh
+            </button>
+        </div>
         ${enrolledHtml}
         
         <h3 style="margin: 32px 0 16px 0; font-size: 18px;">🔓 Available Classes</h3>
@@ -231,6 +231,7 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
         changeBtn.onmouseout = () => changeBtn.style.backgroundColor = '#64748b';
     }
 }
+
 
 // Show Enrollment Modal
 window.showEnrollModal = (classId, className) => {
