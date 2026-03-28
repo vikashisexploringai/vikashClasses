@@ -191,9 +191,14 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
                     <div style="font-weight: 700; font-size: 20px;">${escapeHtml(teacher.displayName || teacher.email)}</div>
                     <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Code: <span style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${teacher.teacherCode}</span></div>
                 </div>
-                <button id="changeTeacherCodeBtn" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
-                    🔄 Change Code
-                </button>
+                <div style="display: flex; gap: 12px;">
+                    <button id="refreshClassesBtn" style="background: #f1f5f9; color: #475569; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                        🔄 Refresh
+                    </button>
+                    <button id="changeTeacherCodeBtn" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                        🔄 Change Code
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -206,6 +211,16 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
     
     content.innerHTML = html;
     
+    const refreshBtn = document.getElementById('refreshClassesBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            renderClassSelection();
+            showToast('Classes refreshed!', 'success');
+        });
+        refreshBtn.onmouseover = () => refreshBtn.style.backgroundColor = '#e2e8f0';
+        refreshBtn.onmouseout = () => refreshBtn.style.backgroundColor = '#f1f5f9';
+    }
+    
     const changeBtn = document.getElementById('changeTeacherCodeBtn');
     if (changeBtn) {
         changeBtn.addEventListener('click', () => {
@@ -215,6 +230,7 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
         changeBtn.onmouseout = () => changeBtn.style.backgroundColor = '#64748b';
     }
 }
+
 
 // Show Enrollment Modal
 window.showEnrollModal = (classId, className) => {
