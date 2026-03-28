@@ -376,6 +376,45 @@ body {
     background: #f1f5f9;
 }
 
+/* Class Card Buttons */
+.enter-class-btn, .enroll-class-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.enter-class-btn:hover, .enroll-class-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.enter-class-btn {
+    background: #22c55e;
+}
+
+.enter-class-btn:hover {
+    background: #16a34a;
+}
+
+.enroll-class-btn {
+    background: #f59e0b;
+}
+
+.enroll-class-btn:hover {
+    background: #d97706;
+}
+
+.available-class {
+    opacity: 0.9;
+}
+
 /* ===== MODAL ===== */
 .modal-overlay {
     position: fixed;
@@ -1414,88 +1453,23 @@ body {
     font-size: 12px;
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 400px) {
-    .quiz-options-large {
-        gap: 10px;
-        padding: 0 16px 25px 16px;
-    }
-    
-    .quiz-option-large {
-        font-size: 28px;
-    }
-    
-    .quiz-option-large .fraction {
-        font-size: 28px;
-    }
-    
-    .quiz-question {
-        font-size: 28px;
-    }
-    
-    .quiz-question .fraction {
-        font-size: 32px;
-    }
-    
-    .chapter-card,
-    .subchapter-card,
-    .lesson-card {
-        padding: 16px 18px;
-    }
-    
-    .chapter-name,
-    .subchapter-name,
-    .lesson-name {
-        font-size: 16px;
-    }
-    
-    .level-button {
-        padding: 16px 20px;
-    }
-    
-    .level-button span:first-child {
-        font-size: 16px;
-    }
-    
-    .header-title {
-        font-size: 18px;
-    }
-    
-    .score-display {
-        font-size: 56px;
-    }
-    
-    .questions-correct {
-        font-size: 20px;
-    }
-    
-    .button-row {
-        gap: 12px;
-        max-width: 280px;
-    }
-    
-    .avatar-circle {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .avatar-text {
-        font-size: 40px;
-    }
-    
-    .profile-name h2 {
-        font-size: 20px;
-    }
-    
-    .all-activity-item-details {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-    }
-    
-    .dot {
-        display: none;
-    }
+.back-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 16px;
+}
+
+.back-btn:hover {
+    background: #f8fafc;
 }
 
 /* ===== TOAST NOTIFICATION ===== */
@@ -1891,7 +1865,106 @@ body.dark-mode .delete-modal-cancel:hover {
     box-shadow: 0 2px 8px rgba(59,130,246,0.3);
 }
 
-/* Dark Mode Styles */
+.btn-secondary {
+    background: #64748b;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 400px) {
+    .quiz-options-large {
+        gap: 10px;
+        padding: 0 16px 25px 16px;
+    }
+    
+    .quiz-option-large {
+        font-size: 28px;
+    }
+    
+    .quiz-option-large .fraction {
+        font-size: 28px;
+    }
+    
+    .quiz-question {
+        font-size: 28px;
+    }
+    
+    .quiz-question .fraction {
+        font-size: 32px;
+    }
+    
+    .chapter-card,
+    .subchapter-card,
+    .lesson-card {
+        padding: 16px 18px;
+    }
+    
+    .chapter-name,
+    .subchapter-name,
+    .lesson-name {
+        font-size: 16px;
+    }
+    
+    .level-button {
+        padding: 16px 20px;
+    }
+    
+    .level-button span:first-child {
+        font-size: 16px;
+    }
+    
+    .header-title {
+        font-size: 18px;
+    }
+    
+    .score-display {
+        font-size: 56px;
+    }
+    
+    .questions-correct {
+        font-size: 20px;
+    }
+    
+    .button-row {
+        gap: 12px;
+        max-width: 280px;
+    }
+    
+    .avatar-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .avatar-text {
+        font-size: 40px;
+    }
+    
+    .profile-name h2 {
+        font-size: 20px;
+    }
+    
+    .all-activity-item-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .dot {
+        display: none;
+    }
+}
+
+/* ===== DARK MODE ===== */
 body.dark-mode {
     background-color: #0f172a;
     color: #f1f5f9;
@@ -1944,6 +2017,11 @@ body.dark-mode .toggle-btn.active {
     color: white;
 }
 
+body.dark-mode .delete-modal-list {
+    background: #1e293b;
+    color: #cbd5e1;
+}
+
 /* ===== UTILITY CLASSES ===== */
 .hidden {
     display: none !important;
@@ -1959,112 +2037,4 @@ body.dark-mode .toggle-btn.active {
 
 .mb-20 {
     margin-bottom: 20px;
-}
-
-
-/* All Activity Page */
-.all-activity-container {
-    padding: 16px;
-}
-
-.all-activity-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-.all-activity-item {
-    background: white;
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    border: 1px solid #e2e8f0;
-}
-
-.all-activity-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.all-activity-item-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #0f172a;
-}
-
-.all-activity-item-score {
-    font-size: 18px;
-    font-weight: 700;
-    color: #3b82f6;
-}
-
-.all-activity-item-details {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-    color: #64748b;
-}
-
-.dot {
-    color: #94a3b8;
-}
-
-.back-btn {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 500;
-    color: #475569;
-    cursor: pointer;
-    text-align: center;
-    margin-top: 16px;
-}
-
-.back-btn:hover {
-    background: #f8fafc;
-}
-
-.btn-secondary {
-    background: #64748b;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.2s;
-}
-
-.btn-secondary:hover {
-    background: #475569;
-}
-
-.delete-modal-list {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    list-style: none;
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.8;
-}
-
-.delete-modal-list li {
-    color: #ef4444;
-}
-
-/* Dark mode support */
-body.dark-mode .delete-modal-list {
-    background: #1e293b;
-    color: #cbd5e1;
 }

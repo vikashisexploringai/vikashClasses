@@ -10,6 +10,7 @@ import { getAuth, getDb, initFirebase } from '../firebase/firebaseInit.js';
 
 let currentStudentId = null;
 let currentStudentData = null;
+let currentTeacherClasses = [];
 
 async function renderClassSelection() {
     updateState({ currentView: 'classSelection' });
@@ -55,9 +56,30 @@ async function renderClassSelection() {
         }
         
         const teacherData = teacherDoc.data();
-        const teacherClasses = currentStudentData.enrolledClasses || [];
         
-        renderTeacherView(teacherData, teacherClasses);
+        // Get ALL classes for this teacher
+        const classesQuery = await db.collection('classes')
+            .where('teacherId', '==', teacherId)
+            .get();
+        
+        const allTeacherClasses = [];
+        classesQuery.forEach(doc => {
+            allTeacherClasses.push({
+                id: doc.id,
+                name: doc.data().name,
+                description: doc.data().description,
+                subjects: doc.data().subjects || [],
+                enrollmentCode: doc.data().enrollmentCode
+            });
+        });
+        currentTeacherClasses = allTeacherClasses;
+        
+        // Get enrolled classes from student data
+        const enrolledClassIds = (currentStudentData.enrolledClasses || []).map(c => c.id);
+        const enrolledClasses = allTeacherClasses.filter(c => enrolledClassIds.includes(c.id));
+        const availableClasses = allTeacherClasses.filter(c => !enrolledClassIds.includes(c.id));
+        
+        renderTeacherView(teacherData, enrolledClasses, availableClasses);
         
     } catch (error) {
         console.error('Error loading class selection:', error);
@@ -90,7 +112,6 @@ function renderNoTeacherView() {
         showTeacherCodeModal('enter');
     });
     
-    // Add hover effect
     const btn = document.getElementById('enterTeacherCodeBtn');
     if (btn) {
         btn.onmouseover = () => btn.style.backgroundColor = '#2563eb';
@@ -98,21 +119,21 @@ function renderNoTeacherView() {
     }
 }
 
-
-function renderTeacherView(teacher, classes) {
+function renderTeacherView(teacher, enrolledClasses, availableClasses) {
     const content = document.getElementById('main-content');
     
-    let classesHtml = '';
-    
-    if (classes.length === 0) {
-        classesHtml = '<p style="text-align: center; color: #64748b; padding: 40px;">No classes available yet.</p>';
+    // Enrolled Classes Section
+    let enrolledHtml = '';
+    if (enrolledClasses.length === 0) {
+        enrolledHtml = '<p style="text-align: center; color: #64748b; padding: 20px;">No enrolled classes yet. Use enrollment codes to join classes.</p>';
     } else {
-        classesHtml = `
+        enrolledHtml = `
             <div class="classes-grid">
-                ${classes.map(cls => `
+                ${enrolledClasses.map(cls => `
                     <div class="class-card" onclick="window.selectClass('${cls.id}')">
-                        <div class="class-header" style="border-left-color: #3b82f6">
+                        <div class="class-header" style="border-left-color: #22c55e;">
                             <span class="class-name">${escapeHtml(cls.name)}</span>
+                            <span style="background: #22c55e20; color: #22c55e; padding: 2px 8px; border-radius: 20px; font-size: 12px;">Enrolled</span>
                         </div>
                         <div class="class-description">${escapeHtml(cls.description || 'No description')}</div>
                         <div class="class-subjects">
@@ -120,6 +141,38 @@ function renderTeacherView(teacher, classes) {
                                 const subject = AppState.config?.subjects.find(sub => sub.id === s);
                                 return `<span class="subject-tag">${subject?.icon} ${subject?.name}</span>`;
                             }).join('') || '<span>No subjects</span>'}
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <button class="enter-class-btn" onclick="event.stopPropagation(); window.selectClass('${cls.id}')">📖 Enter Class</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    // Available Classes Section
+    let availableHtml = '';
+    if (availableClasses.length === 0) {
+        availableHtml = '<p style="text-align: center; color: #64748b; padding: 20px;">No available classes at the moment.</p>';
+    } else {
+        availableHtml = `
+            <div class="classes-grid">
+                ${availableClasses.map(cls => `
+                    <div class="class-card available-class" onclick="event.stopPropagation(); window.showEnrollModal('${cls.id}', '${escapeHtml(cls.name)}')">
+                        <div class="class-header" style="border-left-color: #f59e0b;">
+                            <span class="class-name">${escapeHtml(cls.name)}</span>
+                            <span style="background: #f59e0b20; color: #f59e0b; padding: 2px 8px; border-radius: 20px; font-size: 12px;">Available</span>
+                        </div>
+                        <div class="class-description">${escapeHtml(cls.description || 'No description')}</div>
+                        <div class="class-subjects">
+                            ${cls.subjects?.map(s => {
+                                const subject = AppState.config?.subjects.find(sub => sub.id === s);
+                                return `<span class="subject-tag">${subject?.icon} ${subject?.name}</span>`;
+                            }).join('') || '<span>No subjects</span>'}
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <button class="enroll-class-btn" onclick="event.stopPropagation(); window.showEnrollModal('${cls.id}', '${escapeHtml(cls.name)}')">🔑 Enroll with Code</button>
                         </div>
                     </div>
                 `).join('')}
@@ -145,7 +198,10 @@ function renderTeacherView(teacher, classes) {
         </div>
         
         <h3 style="margin-bottom: 16px; font-size: 18px;">📚 My Classes</h3>
-        ${classesHtml}
+        ${enrolledHtml}
+        
+        <h3 style="margin: 32px 0 16px 0; font-size: 18px;">🔓 Available Classes</h3>
+        ${availableHtml}
     `;
     
     content.innerHTML = html;
@@ -160,6 +216,114 @@ function renderTeacherView(teacher, classes) {
     }
 }
 
+// Show Enrollment Modal
+window.showEnrollModal = (classId, className) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <h3 style="margin-top: 0; margin-bottom: 16px; text-align: center;">🔑 Enroll in ${escapeHtml(className)}</h3>
+            <p style="color: #64748b; margin-bottom: 20px; text-align: center; font-size: 14px;">
+                Enter the enrollment code provided by your teacher.
+            </p>
+            <div class="form-group">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Enrollment Code</label>
+                <input type="text" id="enrollmentCodeInput" placeholder="XXXX-XXXX" autocomplete="off" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 16px; text-align: center; letter-spacing: 1px;">
+            </div>
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button id="cancelEnrollBtn" style="flex: 1; padding: 12px; background: #f1f5f9; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; color: #475569;">Cancel</button>
+                <button id="confirmEnrollBtn" style="flex: 1; padding: 12px; background: #3b82f6; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; color: white;">Enroll</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    const input = modal.querySelector('#enrollmentCodeInput');
+    const cancelBtn = modal.querySelector('#cancelEnrollBtn');
+    const confirmBtn = modal.querySelector('#confirmEnrollBtn');
+    
+    input.focus();
+    
+    cancelBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    confirmBtn.addEventListener('click', async () => {
+        const enrollmentCode = input.value.trim().toUpperCase();
+        
+        if (!enrollmentCode) {
+            showToast('Please enter an enrollment code', 'error');
+            return;
+        }
+        
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Verifying...';
+        confirmBtn.style.opacity = '0.7';
+        
+        const success = await enrollInClass(classId, enrollmentCode);
+        
+        if (success) {
+            modal.remove();
+            renderClassSelection();
+        } else {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Enroll';
+            confirmBtn.style.opacity = '1';
+        }
+    });
+};
+
+// Enroll in class
+async function enrollInClass(classId, enrollmentCode) {
+    const db = getDb();
+    
+    try {
+        // Find the class and verify the enrollment code
+        const classRef = doc(db, 'classes', classId);
+        const classDoc = await getDoc(classRef);
+        
+        if (!classDoc.exists) {
+            showToast('Class not found', 'error');
+            return false;
+        }
+        
+        const classData = classDoc.data();
+        
+        if (classData.enrollmentCode !== enrollmentCode) {
+            showToast('Invalid enrollment code', 'error');
+            return false;
+        }
+        
+        // Check if student is already enrolled
+        const enrolledClassIds = (currentStudentData.enrolledClasses || []).map(c => c.id);
+        if (enrolledClassIds.includes(classId)) {
+            showToast('You are already enrolled in this class', 'info');
+            return true;
+        }
+        
+        // Add class to enrolledClasses
+        const updatedEnrolledClasses = [...(currentStudentData.enrolledClasses || []), {
+            id: classId,
+            name: classData.name,
+            description: classData.description,
+            subjects: classData.subjects || [],
+            enrolledAt: new Date()
+        }];
+        
+        await db.collection('users').doc(currentStudentId).update({
+            enrolledClasses: updatedEnrolledClasses
+        });
+        
+        showToast(`Successfully enrolled in ${classData.name}!`, 'success');
+        return true;
+        
+    } catch (error) {
+        console.error('Error enrolling in class:', error);
+        showToast('Failed to enroll', 'error');
+        return false;
+    }
+}
 
 function showTeacherCodeModal(action) {
     const modal = document.getElementById('teacherCodeModal');
@@ -178,7 +342,6 @@ function showTeacherCodeModal(action) {
     modal.style.display = 'flex';
     input.focus();
     
-    // Remove existing listeners
     const newSubmitBtn = submitBtn.cloneNode(true);
     const newCancelBtn = cancelBtn.cloneNode(true);
     submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
@@ -212,19 +375,16 @@ function showTeacherCodeModal(action) {
         }
     });
     
-    // Add hover effects
     newCancelBtn.onmouseover = () => newCancelBtn.style.backgroundColor = '#e2e8f0';
     newCancelBtn.onmouseout = () => newCancelBtn.style.backgroundColor = '#f1f5f9';
     newSubmitBtn.onmouseover = () => newSubmitBtn.style.backgroundColor = '#2563eb';
     newSubmitBtn.onmouseout = () => newSubmitBtn.style.backgroundColor = '#3b82f6';
 }
 
-
 async function linkTeacher(teacherCode) {
     const db = getDb();
     
     try {
-        // Find teacher by code
         const teacherQuery = await db.collection('teachers')
             .where('teacherCode', '==', teacherCode)
             .get();
@@ -237,7 +397,6 @@ async function linkTeacher(teacherCode) {
         const teacherDoc = teacherQuery.docs[0];
         const teacherData = teacherDoc.data();
         
-        // Get all classes for this teacher
         const classesQuery = await db.collection('classes')
             .where('teacherId', '==', teacherDoc.id)
             .get();
@@ -252,7 +411,6 @@ async function linkTeacher(teacherCode) {
             });
         });
         
-        // Update user document
         await db.collection('users').doc(currentStudentId).update({
             currentTeacherId: teacherDoc.id,
             currentTeacherCode: teacherCode,
@@ -280,10 +438,8 @@ function escapeHtml(text) {
 
 // Make globally available
 window.selectClass = async (classId) => {
-    // Find class from enrolledClasses
     const classData = currentStudentData?.enrolledClasses?.find(c => c.id === classId);
     if (classData) {
-        // Store current class in AppState
         updateState({ 
             currentClass: {
                 id: classId,
