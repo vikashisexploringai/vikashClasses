@@ -17,19 +17,7 @@ async function loadConfig() {
     }
 }
 
-async function loadClassConfig() {
-    try {
-        const response = await fetch('class-config.json');
-        const classConfig = await response.json();
-        updateState({ classConfig });
-        console.log('Class config loaded:', classConfig);
-        return classConfig;
-    } catch (error) {
-        console.error('Failed to load class config:', error);
-        showConfigError('Failed to load class configuration');
-        return null;
-    }
-}
+
 
 function showConfigError(message) {
     const content = document.getElementById('main-content');
@@ -43,4 +31,4 @@ function showConfigError(message) {
     }
 }
 
-export { loadConfig, loadClassConfig };
+export { loadConfig };
