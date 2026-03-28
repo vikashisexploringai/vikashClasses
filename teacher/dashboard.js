@@ -385,61 +385,9 @@ function generateRandomCode() {
 }
 
 // Show class detail modal
-window.showClassDetail = async (classId, className, currentCode) => {
-    document.getElementById('modalClassName').textContent = className;
-    document.getElementById('modalClassCode').textContent = currentCode;
-    
-    const studentsList = document.getElementById('modalStudentsList');
-    studentsList.innerHTML = '<div class="loading">Loading students...</div>';
-    
-    try {
-        const classRef = doc(db, 'classes', classId);
-        const classDoc = await getDoc(classRef);
-        const classData = classDoc.data();
-        const studentIds = classData.enrolledStudents || [];
-        
-        if (studentIds.length === 0) {
-            studentsList.innerHTML = '<p>No students enrolled yet.</p>';
-        } else {
-            let html = '';
-            for (const studentId of studentIds) {
-                const studentDoc = await getDoc(doc(db, 'users', studentId));
-                if (studentDoc.exists) {
-                    const student = studentDoc.data();
-                    html += `
-                        <div class="student-item">
-                            <div>
-                                <strong>${escapeHtml(student.displayName || student.username)}</strong>
-                                <div style="font-size: 12px; color: #64748b;">@${escapeHtml(student.username)} · ${escapeHtml(student.email)}</div>
-                            </div>
-                            <button class="remove-student-btn" data-class-id="${classId}" data-student-id="${studentId}">Remove</button>
-                        </div>
-                    `;
-                }
-            }
-            studentsList.innerHTML = html;
-            
-            document.querySelectorAll('.remove-student-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const cId = btn.dataset.classId;
-                    const sId = btn.dataset.studentId;
-                    if (confirm('Remove this student from the class?')) {
-                        await removeStudentFromClass(cId, sId);
-                        showClassDetail(cId, className, currentCode);
-                    }
-                });
-            });
-        }
-        
-        window.currentClassId = classId;
-        
-    } catch (error) {
-        console.error('Error loading students:', error);
-        studentsList.innerHTML = '<div class="error">Failed to load students</div>';
-    }
-    
-    classDetailModal.style.display = 'flex';
+// Show class detail - navigate to class management page
+window.showClassDetail = (classId, className, currentCode) => {
+    window.location.href = `class.html?id=${classId}`;
 };
 
 async function removeStudentFromClass(classId, studentId) {

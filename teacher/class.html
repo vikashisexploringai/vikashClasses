@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Class - vikashClasses</title>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        /* Card */
+        .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logout-btn { 
+            background: #ef4444; 
+            color: white; 
+            padding: 8px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 500; 
+        }
+        .logout-btn:hover { background: #dc2626; }
+        
+        /* Header with back button */
+        .page-header {
+            margin-bottom: 24px;
+            position: relative;
+            text-align: center;
+        }
+        .back-btn {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0 16px;
+        }
+        .back-btn:hover {
+            color: #3b82f6;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        /* Code Display */
+        .code-display {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f8fafc;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin: 16px 0;
+        }
+        .code-display span {
+            font-family: monospace;
+            font-size: 20px;
+            letter-spacing: 2px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        /* Subject Card */
+        .subject-card {
+            border: 1px solid #e2e8f0;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .subject-card:hover {
+            background: #f8fafc;
+        }
+        .subject-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        .subject-stats {
+            font-size: 13px;
+            color: #64748b;
+        }
+        
+        /* Student Card */
+        .student-item {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 450px;
+            width: 90%;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .modal-cancel {
+            flex: 1;
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .modal-confirm {
+            flex: 1;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        /* Utility */
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .error { color: #ef4444; background: #fee; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            z-index: 2000;
+            animation: fadeInOut 3s ease forwards;
+        }
+        .toast-success { background: #22c55e; }
+        .toast-error { background: #ef4444; }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+        .button-group { display: flex; gap: 12px; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo">📚 Vikash Classes</div>
+            <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
+        </div>
+        
+        <!-- Class Management Content -->
+        <div id="classManagement">
+            <div class="page-header">
+                <button id="backBtn" class="back-btn">‹</button>
+                <h1 id="classNameHeader">Loading...</h1>
+            </div>
+            
+            <!-- Class Details Card -->
+            <div class="card">
+                <h3>📋 Class Details</h3>
+                <div id="classDetails">
+                    <div class="form-group">
+                        <label>Class Name</label>
+                        <input type="text" id="className" placeholder="Class Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="classDescription" placeholder="Class description"></textarea>
+                    </div>
+                    <button id="saveClassDetailsBtn" class="btn-primary">Save Changes</button>
+                </div>
+            </div>
+            
+            <!-- Enrollment Code Card -->
+            <div class="card">
+                <h3>🔑 Enrollment Code</h3>
+                <div class="code-display">
+                    <span id="enrollmentCode">Loading...</span>
+                    <button id="copyCodeBtn" class="btn-secondary">Copy</button>
+                    <button id="generateNewCodeBtn" class="btn-warning">Generate New Code</button>
+                </div>
+                <p style="color: #64748b; font-size: 13px;">💡 Share this code with students to join this class</p>
+            </div>
+            
+            <!-- Subjects Card -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">📚 Subjects</h3>
+                    <button id="addSubjectBtn" class="btn-primary">+ Add Subject</button>
+                </div>
+                <div id="subjectsList">Loading...</div>
+            </div>
+            
+            <!-- Enrolled Students Card -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="margin: 0;">👥 Enrolled Students</h3>
+                    <button id="viewAllStudentsBtn" class="btn-secondary">View All</button>
+                </div>
+                <div id="studentsList">Loading...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Subject Modal -->
+    <div id="addSubjectModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>➕ Add New Subject</h3>
+            <div class="form-group">
+                <label>Subject Name</label>
+                <input type="text" id="newSubjectName" placeholder="e.g., Mathematics">
+            </div>
+            <div class="form-group">
+                <label>Icon (optional)</label>
+                <input type="text" id="newSubjectIcon" placeholder="📐">
+            </div>
+            <div class="modal-buttons">
+                <button id="cancelSubjectBtn" class="modal-cancel">Cancel</button>
+                <button id="confirmSubjectBtn" class="modal-confirm">Add Subject</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lessons Modal (when clicking Manage Lessons) -->
+    <div id="lessonsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 id="lessonsModalTitle">Lessons</h3>
+            <div id="lessonsList">Loading...</div>
+            <div class="modal-buttons">
+                <button id="closeLessonsBtn" class="modal-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Student Progress Modal -->
+    <div id="studentProgressModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3 id="studentNameModal">Student Progress</h3>
+            <div id="studentProgressContent">Loading...</div>
+            <div class="modal-buttons">
+                <button id="closeProgressBtn" class="modal-cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script type="module" src="class.js"></script>
+</body>
+</html>
