@@ -41,8 +41,6 @@ const viewAllStudentsBtn = document.getElementById('viewAllStudentsBtn');
 const addSubjectModal = document.getElementById('addSubjectModal');
 const cancelSubjectBtn = document.getElementById('cancelSubjectBtn');
 const confirmSubjectBtn = document.getElementById('confirmSubjectBtn');
-const newSubjectName = document.getElementById('newSubjectName');
-const newSubjectIcon = document.getElementById('newSubjectIcon');
 const lessonsModal = document.getElementById('lessonsModal');
 const closeLessonsBtn = document.getElementById('closeLessonsBtn');
 const studentProgressModal = document.getElementById('studentProgressModal');
@@ -66,6 +64,30 @@ classId = urlParams.get('id');
 
 if (!classId) {
     window.location.href = 'index.html';
+}
+
+// Load config.json and populate subject dropdown
+async function loadSubjectsConfig() {
+    try {
+        const response = await fetch('../config.json');
+        const config = await response.json();
+        return config.subjects;
+    } catch (error) {
+        console.error('Error loading config:', error);
+        return [];
+    }
+}
+
+// Populate subject dropdown
+async function populateSubjectDropdown() {
+    const subjects = await loadSubjectsConfig();
+    const select = document.getElementById('subjectSelect');
+    
+    select.innerHTML = '<option value="">-- Select a subject --</option>';
+    
+    subjects.forEach(subject => {
+        select.innerHTML += `<option value="${subject.id}" data-icon="${subject.icon}" data-color="${subject.color}">${subject.icon} ${subject.name}</option>`;
+    });
 }
 
 // Check authentication
@@ -133,6 +155,11 @@ async function loadSubjects() {
     subjectsList.innerHTML = '<div class="loading">Loading subjects...</div>';
     
     try {
+        // Load config to get subject names and icons
+        const configSubjects = await loadSubjectsConfig();
+        const configMap = {};
+        configSubjects.forEach(s => { configMap[s.id] = s; });
+        
         const subjectsRef = collection(db, 'subjects');
         const q = query(subjectsRef, where('classId', '==', classId));
         const snapshot = await getDocs(q);
@@ -145,20 +172,21 @@ async function loadSubjects() {
         let html = '';
         for (const docSnap of snapshot.docs) {
             const subject = docSnap.data();
+            const configSubject = configMap[subject.subjectId] || { name: subject.name, icon: subject.icon || '📚' };
             
             // Count lessons for this subject
             const lessonsRef = collection(db, 'lessons');
-            const lessonsQuery = query(lessonsRef, where('subjectId', '==', docSnap.id));
+            const lessonsQuery = query(lessonsRef, where('subjectId', '==', subject.subjectId), where('classId', '==', classId));
             const lessonsSnapshot = await getDocs(lessonsQuery);
             
             html += `
                 <div class="subject-card">
                     <div>
-                        <div class="subject-name">${subject.icon || '📚'} ${escapeHtml(subject.name)}</div>
+                        <div class="subject-name">${configSubject.icon || '📚'} ${configSubject.name}</div>
                         <div class="subject-stats">${lessonsSnapshot.size} lessons</div>
                     </div>
                     <div>
-                        <button class="btn-secondary manage-lessons-btn" data-subject-id="${docSnap.id}" data-subject-name="${escapeHtml(subject.name)}">Manage Lessons</button>
+                        <button class="btn-secondary manage-lessons-btn" data-subject-id="${subject.subjectId}" data-subject-name="${configSubject.name}">Manage Lessons</button>
                     </div>
                 </div>
             `;
@@ -180,12 +208,20 @@ async function loadSubjects() {
     }
 }
 
-// Load students (limit = number of students to show)
+// Load students
 async function loadStudents(limit = 5) {
     studentsList.innerHTML = '<div class="loading">Loading students...</div>';
     
     try {
+        // Refresh class data to get latest enrolled students
+        const classRef = doc(db, 'classes', classId);
+        const classDoc = await getDoc(classRef);
+        if (classDoc.exists) {
+            classData = classDoc.data();
+        }
+        
         const enrolledStudentIds = classData.enrolledStudents || [];
+        console.log('Enrolled students IDs:', enrolledStudentIds);
         
         if (enrolledStudentIds.length === 0) {
             studentsList.innerHTML = '<p>No students enrolled yet.</p>';
@@ -204,10 +240,13 @@ async function loadStudents(limit = 5) {
                         <div>
                             <strong>${escapeHtml(student.displayName || student.username)}</strong>
                             <div style="font-size: 12px; color: #64748b;">@${escapeHtml(student.username)}</div>
+                            <div style="font-size: 11px; color: #64748b;">${escapeHtml(student.email)}</div>
                         </div>
                         <button class="btn-secondary view-student-btn" data-student-id="${studentId}" data-student-name="${escapeHtml(student.displayName || student.username)}">View Progress</button>
                     </div>
                 `;
+            } else {
+                console.log('Student document not found for ID:', studentId);
             }
         }
         
@@ -245,7 +284,7 @@ async function showLessonsModal(subjectId, subjectName) {
     
     try {
         const lessonsRef = collection(db, 'lessons');
-        const q = query(lessonsRef, where('subjectId', '==', subjectId));
+        const q = query(lessonsRef, where('subjectId', '==', subjectId), where('classId', '==', classId));
         const snapshot = await getDocs(q);
         
         if (snapshot.empty) {
@@ -294,7 +333,7 @@ async function showStudentProgress(studentId, studentName) {
             ? Math.round((overall.totalPoints / (overall.quizzesTaken * 100)) * 100) 
             : 0;
         
-        // Get recent attempts
+        // Get recent attempts for this class
         const attemptsRef = collection(db, 'attempts');
         const q = query(attemptsRef, where('userId', '==', studentId), where('classId', '==', classId));
         const attemptsSnapshot = await getDocs(q);
@@ -411,23 +450,34 @@ function generateRandomCode() {
     return code;
 }
 
-// Add subject
-addSubjectBtn.addEventListener('click', () => {
-    newSubjectName.value = '';
-    newSubjectIcon.value = '';
+// Add subject button - show modal and populate dropdown
+addSubjectBtn.addEventListener('click', async () => {
+    await populateSubjectDropdown();
     addSubjectModal.style.display = 'flex';
 });
 
+// Cancel add subject
 cancelSubjectBtn.addEventListener('click', () => {
     addSubjectModal.style.display = 'none';
 });
 
+// Confirm add subject
 confirmSubjectBtn.addEventListener('click', async () => {
-    const name = newSubjectName.value.trim();
-    const icon = newSubjectIcon.value.trim() || '📚';
+    const select = document.getElementById('subjectSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const subjectId = select.value;
+    const subjectName = selectedOption?.textContent?.replace(selectedOption.dataset.icon || '', '').trim() || '';
+    const subjectIcon = selectedOption?.dataset.icon || '📚';
     
-    if (!name) {
-        showToast('Subject name is required', 'error');
+    if (!subjectId) {
+        showToast('Please select a subject', 'error');
+        return;
+    }
+    
+    // Check if subject already exists in this class
+    const existingSubjects = await getDocs(query(collection(db, 'subjects'), where('classId', '==', classId), where('subjectId', '==', subjectId)));
+    if (!existingSubjects.empty) {
+        showToast('This subject is already added to the class', 'error');
         return;
     }
     
@@ -436,14 +486,15 @@ confirmSubjectBtn.addEventListener('click', async () => {
     
     try {
         await addDoc(collection(db, 'subjects'), {
-            name: name,
-            icon: icon,
+            subjectId: subjectId,
+            name: subjectName,
+            icon: subjectIcon,
             classId: classId,
             teacherId: currentTeacherId,
             createdAt: new Date()
         });
         
-        showToast(`Subject "${name}" added!`, 'success');
+        showToast(`Subject "${subjectName}" added!`, 'success');
         addSubjectModal.style.display = 'none';
         loadSubjects();
         

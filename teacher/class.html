@@ -308,23 +308,22 @@
     </div>
     
     <!-- Add Subject Modal -->
-    <div id="addSubjectModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>➕ Add New Subject</h3>
-            <div class="form-group">
-                <label>Subject Name</label>
-                <input type="text" id="newSubjectName" placeholder="e.g., Mathematics">
-            </div>
-            <div class="form-group">
-                <label>Icon (optional)</label>
-                <input type="text" id="newSubjectIcon" placeholder="📐">
-            </div>
-            <div class="modal-buttons">
-                <button id="cancelSubjectBtn" class="modal-cancel">Cancel</button>
-                <button id="confirmSubjectBtn" class="modal-confirm">Add Subject</button>
-            </div>
+    <!-- Add Subject Modal -->
+<div id="addSubjectModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 450px;">
+        <h3>➕ Add Subject to Class</h3>
+        <div class="form-group">
+            <label>Select Subject</label>
+            <select id="subjectSelect" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <option value="">-- Select a subject --</option>
+            </select>
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelSubjectBtn" class="modal-cancel">Cancel</button>
+            <button id="confirmSubjectBtn" class="modal-confirm">Add Subject</button>
         </div>
     </div>
+</div>
     
     <!-- Lessons Modal (when clicking Manage Lessons) -->
     <div id="lessonsModal" class="modal-overlay">
