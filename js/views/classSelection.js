@@ -364,6 +364,7 @@ window.showEnrollModal = (classId, className) => {
 };
 
 // Enroll in class
+// Enroll in class
 async function enrollInClass(classId, enrollmentCode) {
     const db = getDb();
     
@@ -391,12 +392,23 @@ async function enrollInClass(classId, enrollmentCode) {
             return true;
         }
         
-        // Add class to student's enrolledClasses
+        // FETCH SUBJECTS FOR THIS CLASS
+        const subjectsSnapshot = await db.collection('subjects')
+            .where('classId', '==', classId)
+            .get();
+        
+        const subjects = [];
+        subjectsSnapshot.forEach(doc => {
+            const subject = doc.data();
+            subjects.push(subject.subjectId);
+        });
+        
+        // Add class to student's enrolledClasses with subjects
         const updatedEnrolledClasses = [...(currentStudentData.enrolledClasses || []), {
             id: classId,
             name: classData.name,
             description: classData.description,
-            subjects: classData.subjects || [],
+            subjects: subjects,  // Now this has the actual subjects!
             enrolledAt: new Date()
         }];
         
@@ -419,6 +431,7 @@ async function enrollInClass(classId, enrollmentCode) {
         return false;
     }
 }
+
 
 function showTeacherCodeModal(action) {
     const modal = document.getElementById('teacherCodeModal');
@@ -508,11 +521,7 @@ async function linkTeacher(teacherCode) {
             const subjects = [];
             subjectsSnapshot.forEach(subDoc => {
                 const subject = subDoc.data();
-                subjects.push({
-                    id: subject.subjectId,
-                    name: subject.name,
-                    icon: subject.icon
-                });
+                subjects.push(subject.subjectId);
             });
             
             enrolledClasses.push({
@@ -540,6 +549,7 @@ async function linkTeacher(teacherCode) {
         return false;
     }
 }
+
 
 function escapeHtml(text) {
     if (!text) return text;
