@@ -93,9 +93,11 @@ onAuthStateChanged(auth, async (user) => {
 // Login
 // Login
 // Login
+// Login - add loading state
 loginBtn.addEventListener('click', async () => {
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+    const originalButtonText = loginBtn.textContent;
     
     if (!email || !password) {
         showToast('Please enter both email and password', 'error');
@@ -108,14 +110,25 @@ loginBtn.addEventListener('click', async () => {
         return;
     }
     
+    // Show loading state
+    loginBtn.textContent = 'Logging in...';
+    loginBtn.disabled = true;
+    loginBtn.style.opacity = '0.7';
+    
     try {
         await signInWithEmailAndPassword(auth, email, password);
+        // Success - dashboard will appear via auth state listener
+        // No need to reset button as page will change
     } catch (error) {
         console.error('Login error:', error.code);
         
-        // Handle the generic invalid-login-credentials error
+        // Reset button
+        loginBtn.textContent = originalButtonText;
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = '1';
+        
+        // Handle error...
         if (error.code === 'auth/invalid-login-credentials') {
-            // Check if email exists by trying to fetch sign-in methods
             try {
                 const methods = await fetchSignInMethodsForEmail(auth, email);
                 if (methods.length === 0) {
@@ -143,6 +156,8 @@ loginBtn.addEventListener('click', async () => {
         }
     }
 });
+
+
 
 // Forgot Password - Show Modal
 forgotPasswordLink.addEventListener('click', () => {
@@ -312,6 +327,7 @@ cancelCreateBtn.addEventListener('click', () => {
 confirmCreateBtn.addEventListener('click', async () => {
     const name = document.getElementById('newClassName').value;
     const description = document.getElementById('newClassDescription').value;
+    const originalButtonText = confirmCreateBtn.textContent;
     
     if (!name) {
         showToast('Please enter a class name', 'error');
@@ -319,6 +335,11 @@ confirmCreateBtn.addEventListener('click', async () => {
     }
     
     const enrollmentCode = generateRandomCode();
+    
+    // Show loading state
+    confirmCreateBtn.disabled = true;
+    confirmCreateBtn.textContent = 'Creating...';
+    confirmCreateBtn.style.opacity = '0.7';
     
     try {
         await addDoc(collection(db, 'classes'), {
@@ -339,8 +360,13 @@ confirmCreateBtn.addEventListener('click', async () => {
         
     } catch (error) {
         showToast('Failed to create class: ' + error.message, 'error');
+    } finally {
+        confirmCreateBtn.disabled = false;
+        confirmCreateBtn.textContent = originalButtonText;
+        confirmCreateBtn.style.opacity = '1';
     }
 });
+
 
 function generateRandomCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
