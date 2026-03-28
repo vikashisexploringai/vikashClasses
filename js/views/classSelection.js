@@ -550,7 +550,10 @@ function escapeHtml(text) {
 
 // Make globally available
 window.selectClass = async (classId) => {
+    console.log('selectClass called with classId:', classId);
+    console.log('currentStudentData:', currentStudentData);
     const classData = currentStudentData?.enrolledClasses?.find(c => c.id === classId);
+    console.log('Found classData:', classData);
     if (classData) {
         updateState({ 
             currentClass: {
@@ -559,7 +562,10 @@ window.selectClass = async (classId) => {
                 subjects: classData.subjects
             }
         });
+        console.log('AppState after update:', AppState);
         renderSubjects();
+    } else {
+               console.log('Class not found in enrolledClasses');
     }
 };
 

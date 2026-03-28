@@ -7,6 +7,8 @@ import { updateBottomNav } from '../ui/bottomNav.js';
 import { renderLessons } from './lessons.js';
 
 function renderSubjects() {
+    console.log('renderSubjects called');
+    console.log('AppState.currentClass:', AppState.currentClass);   
     const content = document.getElementById('main-content');
     
     updateHeader(AppState.currentClass.name, true, 'renderClassSelection');
