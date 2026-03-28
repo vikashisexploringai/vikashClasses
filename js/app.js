@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load configurations
     await loadConfig();
-    await loadClassConfig();
     
     // Initialize dark mode
     initDarkMode();
