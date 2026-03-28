@@ -291,13 +291,14 @@ window.showEnrollModal = (classId, className) => {
 };
 
 // Enroll in class
+// Enroll in class
 async function enrollInClass(classId, enrollmentCode) {
     const db = getDb();
     
     try {
         // Find the class and verify the enrollment code
-        const classRef = doc(db, 'classes', classId);
-        const classDoc = await getDoc(classRef);
+        const classRef = db.collection('classes').doc(classId);
+        const classDoc = await classRef.get();
         
         if (!classDoc.exists) {
             showToast('Class not found', 'error');
@@ -340,6 +341,7 @@ async function enrollInClass(classId, enrollmentCode) {
         return false;
     }
 }
+
 
 function showTeacherCodeModal(action) {
     const modal = document.getElementById('teacherCodeModal');
