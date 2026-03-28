@@ -183,25 +183,25 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
     
     const html = `
         <div style="background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%); border-radius: 16px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <span style="font-size: 20px;">👩‍🏫</span>
-                        <span style="font-size: 14px; color: #64748b;">Your Teacher</span>
-                    </div>
-                    <div style="font-weight: 700; font-size: 20px;">${escapeHtml(teacher.displayName || teacher.email)}</div>
-                    <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Code: <span style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${teacher.teacherCode}</span></div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span style="font-size: 20px;">👩‍🏫</span>
+                    <span style="font-size: 14px; color: #64748b;">Your Teacher</span>
                 </div>
-                <button id="changeTeacherCodeBtn" style="background: #64748b; color: white; padding: 10px 20px; border: none; border-radius: 30px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
-                    🔄 Change Code
-                </button>
+                <div style="font-weight: 700; font-size: 20px; margin-bottom: 4px;">${escapeHtml(teacher.displayName || teacher.email)}</div>
+                <div style="font-size: 13px; color: #64748b;">
+                    Code: <span style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${teacher.teacherCode}</span>
+                    <button id="changeTeacherCodeBtn" style="background: none; border: none; color: #3b82f6; cursor: pointer; font-size: 13px; margin-left: 8px; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;">
+                        Change
+                    </button>
+                </div>
             </div>
         </div>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <h3 style="margin: 0; font-size: 18px;">📚 My Classes</h3>
-            <button id="refreshClassesBtn" style="background: #f1f5f9; color: #475569; padding: 6px 14px; border: none; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s;">
-                🔄 Refresh
+            <button id="refreshClassesBtn" style="background: none; border: none; cursor: pointer; font-size: 20px; color: #64748b; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" title="Refresh classes">
+                ⟳
             </button>
         </div>
         ${enrolledHtml}
@@ -218,8 +218,14 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
             renderClassSelection();
             showToast('Classes refreshed!', 'success');
         });
-        refreshBtn.onmouseover = () => refreshBtn.style.backgroundColor = '#e2e8f0';
-        refreshBtn.onmouseout = () => refreshBtn.style.backgroundColor = '#f1f5f9';
+        refreshBtn.onmouseover = () => {
+            refreshBtn.style.backgroundColor = '#f1f5f9';
+            refreshBtn.style.color = '#3b82f6';
+        };
+        refreshBtn.onmouseout = () => {
+            refreshBtn.style.backgroundColor = 'transparent';
+            refreshBtn.style.color = '#64748b';
+        };
     }
     
     const changeBtn = document.getElementById('changeTeacherCodeBtn');
@@ -227,11 +233,16 @@ function renderTeacherView(teacher, enrolledClasses, availableClasses) {
         changeBtn.addEventListener('click', () => {
             showTeacherCodeModal('change');
         });
-        changeBtn.onmouseover = () => changeBtn.style.backgroundColor = '#475569';
-        changeBtn.onmouseout = () => changeBtn.style.backgroundColor = '#64748b';
+        changeBtn.onmouseover = () => {
+            changeBtn.style.backgroundColor = '#eff6ff';
+            changeBtn.style.textDecoration = 'underline';
+        };
+        changeBtn.onmouseout = () => {
+            changeBtn.style.backgroundColor = 'transparent';
+            changeBtn.style.textDecoration = 'none';
+        };
     }
 }
-
 
 // Show Enrollment Modal
 window.showEnrollModal = (classId, className) => {
