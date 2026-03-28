@@ -21,6 +21,8 @@ const db = getFirestore(app);
 let classId = null;
 let classData = null;
 let currentTeacherId = null;
+let currentSubjectId = null;
+let currentSubjectName = null;
 
 // DOM Elements
 const backBtn = document.getElementById('backBtn');
@@ -45,6 +47,16 @@ const lessonsModal = document.getElementById('lessonsModal');
 const closeLessonsBtn = document.getElementById('closeLessonsBtn');
 const studentProgressModal = document.getElementById('studentProgressModal');
 const closeProgressBtn = document.getElementById('closeProgressBtn');
+
+// Lesson Form Modal Elements
+const lessonFormModal = document.getElementById('lessonFormModal');
+const cancelLessonBtn = document.getElementById('cancelLessonBtn');
+const saveLessonBtn = document.getElementById('saveLessonBtn');
+const addLessonBtn = document.getElementById('addLessonBtn');
+const lessonTitle = document.getElementById('lessonTitle');
+const lessonDescription = document.getElementById('lessonDescription');
+const lessonJsonInput = document.getElementById('lessonJsonInput');
+const lessonFileUpload = document.getElementById('lessonFileUpload');
 
 // Toast function
 function showToast(message, type) {
@@ -276,6 +288,9 @@ async function loadStudents(limit = 5) {
 
 // Show lessons modal
 async function showLessonsModal(subjectId, subjectName) {
+    currentSubjectId = subjectId;
+    currentSubjectName = subjectName;
+    
     const lessonsListDiv = document.getElementById('lessonsList');
     const lessonsModalTitle = document.getElementById('lessonsModalTitle');
     lessonsModalTitle.textContent = `${subjectName} - Lessons`;
@@ -288,32 +303,190 @@ async function showLessonsModal(subjectId, subjectName) {
         const snapshot = await getDocs(q);
         
         if (snapshot.empty) {
-            lessonsListDiv.innerHTML = '<p>No lessons yet. Add lessons to this subject.</p>';
+            lessonsListDiv.innerHTML = '<p>No lessons yet. Click "Add New Lesson" to get started.</p>';
             return;
         }
         
         let html = '';
         snapshot.forEach(docSnap => {
             const lesson = docSnap.data();
+            const questionCount = lesson.questions?.length || 0;
+            const updatedDate = lesson.updatedAt?.toDate ? new Date(lesson.updatedAt.toDate()).toLocaleDateString() : lesson.createdAt?.toDate ? new Date(lesson.createdAt.toDate()).toLocaleDateString() : 'N/A';
+            
             html += `
                 <div class="subject-card" style="margin-bottom: 8px;">
                     <div>
                         <div><strong>📖 ${escapeHtml(lesson.title)}</strong></div>
-                        <div style="font-size: 12px; color: #64748b;">${lesson.questions?.length || 0} questions</div>
+                        <div style="font-size: 12px; color: #64748b;">${questionCount} questions · Last updated: ${updatedDate}</div>
                     </div>
-                    <div>
-                        <button class="btn-warning" style="padding: 4px 12px;">Edit</button>
-                        <button class="btn-danger" style="padding: 4px 12px;">Delete</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-warning edit-lesson-btn" data-lesson-id="${docSnap.id}" data-lesson-title="${escapeHtml(lesson.title)}" data-lesson-description="${escapeHtml(lesson.description || '')}" data-lesson-json='${JSON.stringify(lesson.questions || []).replace(/'/g, "\\'")}' style="padding: 4px 12px;">Edit</button>
+                        <button class="btn-danger delete-lesson-btn" data-lesson-id="${docSnap.id}" style="padding: 4px 12px;">Delete</button>
                     </div>
                 </div>
             `;
         });
         lessonsListDiv.innerHTML = html;
         
+        // Add edit event listeners
+        document.querySelectorAll('.edit-lesson-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lessonId = btn.dataset.lessonId;
+                const title = btn.dataset.lessonTitle;
+                const description = btn.dataset.lessonDescription;
+                const questionsJson = btn.dataset.lessonJson;
+                showLessonForm(lessonId, title, description, questionsJson);
+            });
+        });
+        
+        // Add delete event listeners
+        document.querySelectorAll('.delete-lesson-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const lessonId = btn.dataset.lessonId;
+                if (confirm('Delete this lesson? This action cannot be undone.')) {
+                    await deleteLesson(lessonId);
+                    showLessonsModal(currentSubjectId, currentSubjectName);
+                }
+            });
+        });
+        
     } catch (error) {
         console.error('Error loading lessons:', error);
         lessonsListDiv.innerHTML = '<div class="error">Failed to load lessons</div>';
     }
+}
+
+// Show add/edit lesson form
+function showLessonForm(lessonId = null, title = '', description = '', questionsJson = '[]') {
+    const modal = document.getElementById('lessonFormModal');
+    const modalTitle = document.getElementById('lessonFormTitle');
+    const lessonIdField = document.getElementById('lessonId');
+    
+    if (lessonId) {
+        modalTitle.textContent = '✏️ Edit Lesson';
+        lessonIdField.value = lessonId;
+    } else {
+        modalTitle.textContent = '➕ Add New Lesson';
+        lessonIdField.value = '';
+    }
+    
+    lessonTitle.value = title;
+    lessonDescription.value = description;
+    
+    // Format JSON for display
+    try {
+        const questions = JSON.parse(questionsJson);
+        lessonJsonInput.value = JSON.stringify(questions, null, 2);
+    } catch (e) {
+        lessonJsonInput.value = questionsJson;
+    }
+    
+    modal.style.display = 'flex';
+}
+
+// Save lesson
+async function saveLesson() {
+    const lessonId = document.getElementById('lessonId').value;
+    const title = lessonTitle.value.trim();
+    const description = lessonDescription.value.trim();
+    let questions = [];
+    
+    // Get questions from JSON input
+    const jsonText = lessonJsonInput.value.trim();
+    if (jsonText) {
+        try {
+            const parsed = JSON.parse(jsonText);
+            if (parsed.questions && Array.isArray(parsed.questions)) {
+                questions = parsed.questions;
+            } else if (Array.isArray(parsed)) {
+                questions = parsed;
+            } else {
+                showToast('Invalid JSON format. Please provide an array of questions or object with "questions" array.', 'error');
+                return;
+            }
+        } catch (e) {
+            showToast('Invalid JSON format. Please check your syntax.', 'error');
+            return;
+        }
+    }
+    
+    if (!title) {
+        showToast('Lesson title is required', 'error');
+        return;
+    }
+    
+    if (questions.length === 0) {
+        showToast('At least one question is required', 'error');
+        return;
+    }
+    
+    saveLessonBtn.disabled = true;
+    saveLessonBtn.textContent = 'Saving...';
+    
+    try {
+        const lessonData = {
+            title: title,
+            description: description,
+            subjectId: currentSubjectId,
+            classId: classId,
+            teacherId: currentTeacherId,
+            questions: questions,
+            updatedAt: new Date()
+        };
+        
+        if (lessonId) {
+            // Update existing lesson
+            await updateDoc(doc(db, 'lessons', lessonId), lessonData);
+            showToast('Lesson updated successfully!', 'success');
+        } else {
+            // Create new lesson
+            lessonData.createdAt = new Date();
+            await addDoc(collection(db, 'lessons'), lessonData);
+            showToast('Lesson added successfully!', 'success');
+        }
+        
+        // Close modal and refresh lessons list
+        lessonFormModal.style.display = 'none';
+        showLessonsModal(currentSubjectId, currentSubjectName);
+        
+    } catch (error) {
+        console.error('Error saving lesson:', error);
+        showToast('Failed to save lesson: ' + error.message, 'error');
+    } finally {
+        saveLessonBtn.disabled = false;
+        saveLessonBtn.textContent = 'Save Lesson';
+    }
+}
+
+// Delete lesson
+async function deleteLesson(lessonId) {
+    try {
+        await deleteDoc(doc(db, 'lessons', lessonId));
+        showToast('Lesson deleted successfully!', 'success');
+    } catch (error) {
+        console.error('Error deleting lesson:', error);
+        showToast('Failed to delete lesson', 'error');
+    }
+}
+
+// Handle file upload
+function handleFileUpload(file) {
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const content = e.target.result;
+            // Validate JSON
+            JSON.parse(content);
+            lessonJsonInput.value = content;
+            showToast('File loaded successfully!', 'success');
+        } catch (error) {
+            showToast('Invalid JSON file', 'error');
+        }
+    };
+    reader.readAsText(file);
 }
 
 // Show student progress modal
@@ -509,24 +682,48 @@ confirmSubjectBtn.addEventListener('click', async () => {
 
 // View all students
 viewAllStudentsBtn.addEventListener('click', () => {
-    loadStudents(100); // Load all students
+    loadStudents(100);
     viewAllStudentsBtn.style.display = 'none';
 });
 
-// Modal close buttons
-closeLessonsBtn.addEventListener('click', () => {
-    lessonsModal.style.display = 'none';
-});
+// Lesson modal buttons
+if (addLessonBtn) {
+    addLessonBtn.addEventListener('click', () => {
+        showLessonForm();
+    });
+}
 
-closeProgressBtn.addEventListener('click', () => {
-    studentProgressModal.style.display = 'none';
-});
+if (closeLessonsBtn) {
+    closeLessonsBtn.addEventListener('click', () => {
+        lessonsModal.style.display = 'none';
+    });
+}
+
+if (cancelLessonBtn) {
+    cancelLessonBtn.addEventListener('click', () => {
+        lessonFormModal.style.display = 'none';
+    });
+}
+
+if (saveLessonBtn) {
+    saveLessonBtn.addEventListener('click', saveLesson);
+}
+
+// File upload listener
+if (lessonFileUpload) {
+    lessonFileUpload.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+}
 
 // Close modals on outside click
 window.addEventListener('click', (e) => {
     if (e.target === addSubjectModal) addSubjectModal.style.display = 'none';
     if (e.target === lessonsModal) lessonsModal.style.display = 'none';
     if (e.target === studentProgressModal) studentProgressModal.style.display = 'none';
+    if (e.target === lessonFormModal) lessonFormModal.style.display = 'none';
 });
 
 // Back button
@@ -538,6 +735,11 @@ backBtn.addEventListener('click', () => {
 logoutBtn.addEventListener('click', async () => {
     await signOut(auth);
     window.location.href = 'index.html';
+});
+
+// Close progress modal
+closeProgressBtn.addEventListener('click', () => {
+    studentProgressModal.style.display = 'none';
 });
 
 function escapeHtml(text) {
