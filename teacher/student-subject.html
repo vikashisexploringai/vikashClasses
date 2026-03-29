@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subject Progress - vikashClasses</title>
+    <link rel="stylesheet" href="class.css">
+    <style>
+        .lesson-card {
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lesson-card:hover {
+            background: #f8fafc;
+            transform: translateX(4px);
+        }
+        .lesson-info {
+            flex: 1;
+        }
+        .lesson-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .lesson-stats {
+            font-size: 13px;
+            color: #64748b;
+        }
+        .lesson-score {
+            font-size: 20px;
+            font-weight: 700;
+            color: #3b82f6;
+            min-width: 80px;
+            text-align: right;
+        }
+        .page-header {
+            margin-bottom: 24px;
+            position: relative;
+            text-align: center;
+        }
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0 16px;
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .back-btn:hover {
+            color: #3b82f6;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .student-name {
+            font-size: 18px;
+            color: #64748b;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .subject-header {
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .subject-header h2 {
+            margin: 0 0 8px 0;
+        }
+        .subject-accuracy {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo">📚 Vikash Classes</div>
+            <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
+        </div>
+        
+        <div class="page-header">
+            <button id="backBtn" class="back-btn">‹</button>
+            <h1 id="pageTitle">Subject Progress</h1>
+        </div>
+        
+        <div id="studentName" class="student-name">Loading...</div>
+        
+        <div id="subjectHeader" class="subject-header">
+            <h2 id="subjectName">Loading...</h2>
+            <div id="subjectStats" class="subject-stats">Loading...</div>
+        </div>
+        
+        <div id="lessonsList">Loading...</div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script type="module" src="student-subject.js"></script>
+</body>
+</html>

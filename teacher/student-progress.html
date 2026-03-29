@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Progress - vikashClasses</title>
+    <link rel="stylesheet" href="class.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .subject-card {
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-radius: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .subject-card:hover {
+            background: #f8fafc;
+            transform: translateX(4px);
+        }
+        .subject-info {
+            flex: 1;
+        }
+        .subject-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .subject-stats {
+            font-size: 13px;
+            color: #64748b;
+        }
+        .progress-bar-container {
+            width: 200px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .subject-score {
+            font-size: 20px;
+            font-weight: 700;
+            color: #3b82f6;
+            min-width: 80px;
+            text-align: right;
+        }
+        .view-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 16px;
+        }
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0 16px;
+        }
+        .back-btn:hover {
+            color: #3b82f6;
+        }
+        .page-header {
+            margin-bottom: 24px;
+            position: relative;
+            text-align: center;
+        }
+        .page-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .student-name {
+            font-size: 18px;
+            color: #64748b;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo">📚 Vikash Classes</div>
+            <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
+        </div>
+        
+        <div class="page-header">
+            <button id="backBtn" class="back-btn">‹</button>
+            <h1 id="pageTitle">Student Progress</h1>
+        </div>
+        
+        <div id="studentName" class="student-name">Loading...</div>
+        
+        <div id="overallStats" class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalPoints">-</div>
+                <div class="stat-label">Total Points</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalQuizzes">-</div>
+                <div class="stat-label">Quizzes Taken</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgAccuracy">-</div>
+                <div class="stat-label">Avg Accuracy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalTime">-</div>
+                <div class="stat-label">Total Time</div>
+            </div>
+        </div>
+        
+        <div id="subjectsList">Loading...</div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script type="module" src="student-progress.js"></script>
+</body>
+</html>

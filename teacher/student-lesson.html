@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson Progress - vikashClasses</title>
+    <link rel="stylesheet" href="class.css">
+    <style>
+        .attempt-card {
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .attempt-header {
+            background: #f8fafc;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .attempt-header:hover {
+            background: #f1f5f9;
+        }
+        .attempt-score {
+            font-size: 20px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        .attempt-date {
+            font-size: 14px;
+            color: #64748b;
+        }
+        .attempt-details {
+            padding: 20px;
+            display: none;
+            background: white;
+        }
+        .attempt-details.open {
+            display: block;
+        }
+        .question-item {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+        }
+        .question-item:last-child {
+            border-bottom: none;
+        }
+        .question-status {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .status-correct {
+            background: #22c55e;
+            color: white;
+        }
+        .status-wrong {
+            background: #ef4444;
+            color: white;
+        }
+        .question-text {
+            flex: 1;
+        }
+        .question-answer {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+        .stats-row {
+            display: flex;
+            gap: 32px;
+            justify-content: center;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .chevron {
+            transition: transform 0.2s;
+        }
+        .chevron.open {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="logo">📚 Vikash Classes</div>
+            <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
+        </div>
+        
+        <div class="page-header">
+            <button id="backBtn" class="back-btn">‹</button>
+            <h1 id="pageTitle">Lesson Progress</h1>
+        </div>
+        
+        <div id="studentName" class="student-name">Loading...</div>
+        
+        <div id="lessonHeader" class="subject-header">
+            <h2 id="lessonTitle">Loading...</h2>
+            <div id="lessonSubject" class="lesson-subject"></div>
+        </div>
+        
+        <div id="attemptsList">Loading...</div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script type="module" src="student-lesson.js"></script>
+</body>
+</html>

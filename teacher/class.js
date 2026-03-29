@@ -254,7 +254,11 @@ async function loadStudents(limit = 5) {
                             <div style="font-size: 12px; color: #64748b;">@${escapeHtml(student.username)}</div>
                             <div style="font-size: 11px; color: #64748b;">${escapeHtml(student.email)}</div>
                         </div>
-                        <button class="btn-secondary view-student-btn" data-student-id="${studentId}" data-student-name="${escapeHtml(student.displayName || student.username)}">View Progress</button>
+                        <button class="btn-secondary view-student-btn" 
+                            data-student-id="${studentId}" 
+                            data-student-name="${escapeHtml(student.displayName || student.username)}">
+                            View Progress
+                        </button>
                     </div>
                 `;
             } else {
@@ -269,7 +273,7 @@ async function loadStudents(limit = 5) {
             btn.addEventListener('click', () => {
                 const studentId = btn.dataset.studentId;
                 const studentName = btn.dataset.studentName;
-                showStudentProgress(studentId, studentName);
+                window.location.href = `student-progress.html?studentId=${studentId}&studentName=${encodeURIComponent(studentName)}`;
             });
         });
         
@@ -285,6 +289,7 @@ async function loadStudents(limit = 5) {
         studentsList.innerHTML = '<div class="error">Failed to load students</div>';
     }
 }
+
 
 // Show lessons modal
 async function showLessonsModal(subjectId, subjectName) {
