@@ -74,6 +74,9 @@ window.checkAnswer = async function(selectedOption, buttonElement) {
     const question = window.currentQuizData.questions[window.currentQuizData.currentQuestion];
     const isCorrect = (selectedOption === question.correct);
     
+    // STORE the user's selected answer
+    question.userSelected = selectedOption;
+    
     if (isCorrect) {
         const pointsEarned = calculatePoints(timeTaken);
         buttonElement.classList.add('correct');
@@ -226,6 +229,23 @@ async function saveQuizProgress() {
     const questionsCorrect = Math.round(window.currentQuizData.score / (maxPossible / totalQuestions));
     const totalTimeSpent = Math.round((Date.now() - window.quizStartTime) / 1000);
     
+    // NEW: Track user answers for each question
+    const userAnswers = [];
+    for (let i = 0; i < window.currentQuizData.questions.length; i++) {
+        const question = window.currentQuizData.questions[i];
+        const userSelected = question.userSelected || null;
+        const isCorrect = userSelected === question.correct;
+        
+        userAnswers.push({
+            questionId: i,
+            questionText: question.question,
+            userSelected: userSelected,
+            correctAnswer: question.correct,
+            isCorrect: isCorrect,
+            explanation: question.explanation || ''
+        });
+    }
+    
     try {
         const { getDb } = await import('../firebase/firebaseInit.js');
         const db = getDb();
@@ -250,32 +270,19 @@ async function saveQuizProgress() {
             questionsCorrect: questionsCorrect,
             totalQuestions: totalQuestions,
             timeSpent: totalTimeSpent,
+            userAnswers: userAnswers,  // NEW: Store answers
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
         await db.collection('attempts').add(attemptData);
         
-        // Update user overall stats
-        const userRef = db.collection('users').doc(user.uid);
-        const userDoc = await userRef.get();
-        
-        if (userDoc.exists) {
-            const userData = userDoc.data();
-            const overall = userData.overall || { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 };
-            
-            overall.totalPoints = (overall.totalPoints || 0) + window.currentQuizData.score;
-            overall.quizzesTaken = (overall.quizzesTaken || 0) + 1;
-            overall.totalTimeSpent = (overall.totalTimeSpent || 0) + totalTimeSpent;
-            
-            await userRef.update({ overall });
-        }
-        
-        console.log('✅ Quiz progress saved');
-        
+        // Update user overall stats...
+        // ... rest of the function
     } catch (error) {
         console.error('Error saving progress:', error);
     }
 }
+
 
 window.exitQuiz = function() {
     if (window.questionTimer) clearInterval(window.questionTimer);

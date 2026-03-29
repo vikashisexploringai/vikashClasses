@@ -505,39 +505,13 @@ async function linkTeacher(teacherCode) {
         const teacherDoc = teacherQuery.docs[0];
         const teacherData = teacherDoc.data();
         
-        const classesQuery = await db.collection('classes')
-            .where('teacherId', '==', teacherDoc.id)
-            .get();
-        
-        const enrolledClasses = [];
-        for (const doc of classesQuery.docs) {
-            const classData = doc.data();
-            
-            // Fetch subjects for this class
-            const subjectsSnapshot = await db.collection('subjects')
-                .where('classId', '==', doc.id)
-                .get();
-            
-            const subjects = [];
-            subjectsSnapshot.forEach(subDoc => {
-                const subject = subDoc.data();
-                subjects.push(subject.subjectId);
-            });
-            
-            enrolledClasses.push({
-                id: doc.id,
-                name: classData.name,
-                description: classData.description,
-                subjects: subjects
-            });
-        }
-        
+        // ONLY update teacher info, DO NOT add classes to enrolledClasses
         await db.collection('users').doc(currentStudentId).update({
             currentTeacherId: teacherDoc.id,
             currentTeacherCode: teacherCode,
             currentTeacherName: teacherData.displayName || teacherData.email,
-            teacherLinkedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            enrolledClasses: enrolledClasses
+            teacherLinkedAt: firebase.firestore.FieldValue.serverTimestamp()
+            // NOTE: enrolledClasses is NOT updated here
         });
         
         showToast(`Linked to ${teacherData.displayName || teacherData.email}!`, 'success');
