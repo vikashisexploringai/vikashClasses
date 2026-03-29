@@ -205,21 +205,18 @@ async function loadAttemptQuestions(index, attempt) {
     const detailsDiv = document.getElementById(`attempt-details-${index}`);
     if (!detailsDiv) return;
     
-    // Get the questions from the lesson data
-    if (!lessonData || !lessonData.questions) {
-        detailsDiv.innerHTML = '<p>Question details not available</p>';
+    // Get the user answers from the attempt
+    const userAnswers = attempt.userAnswers || [];
+    
+    if (userAnswers.length === 0) {
+        detailsDiv.innerHTML = '<p>Detailed answers not available for this attempt</p>';
         return;
     }
     
-    // Get user's answers - we need to store this in attempts
-    // For now, we'll show all questions with "Not available" for correct/wrong
-    // In a real implementation, you'd store the answers array in the attempt
-    
     let questionsHtml = '';
-    for (let qIndex = 0; qIndex < lessonData.questions.length; qIndex++) {
-        const q = lessonData.questions[qIndex];
-        // This is placeholder - you need to store actual answers in the attempt
-        const isCorrect = false; // Placeholder
+    for (let i = 0; i < userAnswers.length; i++) {
+        const answer = userAnswers[i];
+        const isCorrect = answer.isCorrect;
         
         questionsHtml += `
             <div class="question-item">
@@ -227,16 +224,18 @@ async function loadAttemptQuestions(index, attempt) {
                     ${isCorrect ? '✓' : '✗'}
                 </div>
                 <div class="question-text">
-                    <div>${escapeHtml(q.question)}</div>
+                    <div>${escapeHtml(answer.questionText)}</div>
                     <div class="question-answer">
-                        Correct answer: ${escapeHtml(q.correct)}
+                        <strong>Your answer:</strong> ${escapeHtml(answer.userSelected || 'Not answered')}<br>
+                        <strong>Correct answer:</strong> ${escapeHtml(answer.correctAnswer)}
                     </div>
+                    ${answer.explanation ? `<div class="question-explanation" style="margin-top: 8px; font-size: 12px; color: #3b82f6;">💡 ${escapeHtml(answer.explanation)}</div>` : ''}
                 </div>
             </div>
         `;
     }
     
-    detailsDiv.innerHTML = questionsHtml || '<p>No questions found</p>';
+    detailsDiv.innerHTML = questionsHtml;
 }
 
 // Toggle attempt details

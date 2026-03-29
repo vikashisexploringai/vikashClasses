@@ -260,3 +260,22 @@ textarea {
     cursor: pointer;
     display: inline-block;
 }
+
+.question-explanation {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #3b82f6;
+    background: #eff6ff;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.status-correct {
+    background: #22c55e;
+    color: white;
+}
+
+.status-wrong {
+    background: #ef4444;
+    color: white;
+}
