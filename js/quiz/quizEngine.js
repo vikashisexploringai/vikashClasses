@@ -41,6 +41,9 @@ async function startQuiz(lessonData) {
     startCircularTimer();
 }
 
+// Make startQuiz globally available for restart functionality
+window.startQuiz = startQuiz;
+
 async function loadFormatterForQuestion(question) {
     const format = question.format || 'text';
     
@@ -288,4 +291,13 @@ window.exitQuiz = function() {
     });
 };
 
-export { startQuiz};
+// Restart quiz function for the "Try Again" button
+window.restartQuiz = function() {
+    if (window.currentQuizData) {
+        window.currentQuizData.currentQuestion = 0;
+        window.currentQuizData.score = 0;
+        startQuiz(window.currentQuizData);
+    }
+};
+
+export { startQuiz };

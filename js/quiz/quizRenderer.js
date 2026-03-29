@@ -65,8 +65,8 @@ function renderQuizComplete(quizData, onExitCallback, onRestartCallback) {
             <div class="score-display">${quizData.score}</div>
             <div class="questions-correct">${quizData.currentQuestion + 1}/${quizData.questions.length}</div>
             <div class="button-row">
-                <button class="try-again-btn" onclick="(${onRestartCallback.toString()})()">Try Again</button>
-                <button class="next-level-btn" onclick="(${onExitCallback.toString()})()">Done</button>
+                <button class="try-again-btn" onclick="window.restartQuiz()">Try Again</button>
+                <button class="next-level-btn" onclick="window.exitQuiz()">Done</button>
             </div>
         </div>
     `;
@@ -87,5 +87,8 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Make functions globally available for HTML onclick handlers
+window.clearQuizUI = clearQuizUI;
 
 export { renderQuizQuestion, renderQuizComplete, clearQuizUI };
