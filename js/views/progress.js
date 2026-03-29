@@ -48,15 +48,18 @@ function renderProgress() {
             }
             
             const userData = userDoc.data();
-            const overall = userData.overall || { 
+    const overall = userData.overall || { 
     totalPoints: 0, 
-    totalMaxPossible: 0, 
+    totalMaxPossible: 0,
+    totalCorrectAnswers: 0,
+    totalQuestionsAttempted: 0,
     quizzesTaken: 0, 
     totalTimeSpent: 0 
 };
 
-const avgAccuracy = overall.quizzesTaken > 0 && overall.totalMaxPossible > 0
-    ? Math.round((overall.totalPoints / overall.totalMaxPossible) * 100)
+// Accuracy = (total correct answers / total questions attempted) × 100
+const avgAccuracy = overall.totalQuestionsAttempted > 0
+    ? Math.round((overall.totalCorrectAnswers / overall.totalQuestionsAttempted) * 100)
     : 0;
             
             let html = `

@@ -226,9 +226,19 @@ async function saveQuizProgress() {
     const totalQuestions = window.currentQuizData.questions.length;
     const maxPointsPerQuestion = window.currentQuizData.maxPointsPerQuestion || 100;
     const maxPossible = totalQuestions * maxPointsPerQuestion;
-    const accuracy = Math.round((window.currentQuizData.score / maxPossible) * 100);
-    const questionsCorrect = Math.round(window.currentQuizData.score / (maxPossible / totalQuestions));
     const totalTimeSpent = Math.round((Date.now() - window.quizStartTime) / 1000);
+    
+    // Count correct answers (not based on points)
+    let questionsCorrect = 0;
+    for (let i = 0; i < window.currentQuizData.questions.length; i++) {
+        const question = window.currentQuizData.questions[i];
+        if (question.userSelected === question.correct) {
+            questionsCorrect++;
+        }
+    }
+    
+    // Accuracy based on correct answers
+    const accuracy = Math.round((questionsCorrect / totalQuestions) * 100);
     
     // Track user answers
     const userAnswers = [];
@@ -265,11 +275,11 @@ async function saveQuizProgress() {
             subject: AppState.currentSubject,
             lessonId: window.currentQuizData.lessonId,
             lessonTitle: window.currentQuizData.title,
-            score: window.currentQuizData.score,
+            score: window.currentQuizData.score,        // Points (for ranking)
             maxPossible: maxPossible,
-            accuracy: accuracy,
-            questionsCorrect: questionsCorrect,
+            questionsCorrect: questionsCorrect,         // Number of correct answers
             totalQuestions: totalQuestions,
+            accuracy: accuracy,                          // Percentage based on correct answers
             timeSpent: totalTimeSpent,
             userAnswers: userAnswers,
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -286,13 +296,17 @@ async function saveQuizProgress() {
             const userData = userDoc.data();
             const overall = userData.overall || { 
                 totalPoints: 0, 
-                totalMaxPossible: 0,  // NEW FIELD
+                totalMaxPossible: 0,
+                totalCorrectAnswers: 0,    // NEW: Total correct answers
+                totalQuestionsAttempted: 0, // NEW: Total questions attempted
                 quizzesTaken: 0, 
                 totalTimeSpent: 0 
             };
             
             overall.totalPoints = (overall.totalPoints || 0) + window.currentQuizData.score;
-            overall.totalMaxPossible = (overall.totalMaxPossible || 0) + maxPossible;  // NEW
+            overall.totalMaxPossible = (overall.totalMaxPossible || 0) + maxPossible;
+            overall.totalCorrectAnswers = (overall.totalCorrectAnswers || 0) + questionsCorrect;
+            overall.totalQuestionsAttempted = (overall.totalQuestionsAttempted || 0) + totalQuestions;
             overall.quizzesTaken = (overall.quizzesTaken || 0) + 1;
             overall.totalTimeSpent = (overall.totalTimeSpent || 0) + totalTimeSpent;
             
@@ -304,6 +318,7 @@ async function saveQuizProgress() {
         console.error('Error saving progress:', error);
     }
 }
+
 
 
 window.exitQuiz = function() {
