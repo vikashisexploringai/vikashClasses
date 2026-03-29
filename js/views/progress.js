@@ -122,13 +122,26 @@ function renderProgress() {
             
         }).catch(error => {
             console.error('Error loading progress:', error);
-            content.innerHTML = '<div class="error-message">Failed to load progress</div>';
+            
+            // Handle missing index error
+            if (error.code === 'failed-precondition' && error.message.includes('index')) {
+                content.innerHTML = `
+                    <div class="error-message" style="text-align: center; padding: 40px;">
+                        <p>📊 Progress data is being prepared.</p>
+                        <p style="font-size: 14px; margin-top: 8px;">Please wait a few minutes and refresh the page.</p>
+                        <button onclick="window.location.reload()" style="margin-top: 16px; padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer;">Refresh</button>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = '<div class="error-message">Failed to load progress</div>';
+            }
         });
     }).catch(error => {
         console.error('Firebase init error:', error);
         content.innerHTML = '<div class="error-message">Failed to initialize</div>';
     });
 }
+
 
 function viewAllActivity() {
     renderAllActivity();

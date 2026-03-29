@@ -7,21 +7,23 @@ import { AppState } from '../core/state.js';
 import { shuffleArray } from '../core/utils.js';
 import { renderQuizQuestion, renderQuizComplete, clearQuizUI } from './quizRenderer.js';
 
-let currentQuizData = null;
-let questionTimer = null;
-let timeRemaining = 0;
-let questionStartTime = 0;
-let quizStartTime = 0;
+// Make variables globally accessible for HTML onclick handlers
+window.currentQuizData = null;
+window.questionTimer = null;
+window.timeRemaining = 0;
+window.questionStartTime = 0;
+window.quizStartTime = 0;
+
 let currentFormatter = null;
 
 async function startQuiz(lessonData) {
-    quizStartTime = Date.now();
+    window.quizStartTime = Date.now();
     
     const appHeader = document.getElementById('app-header');
     if (appHeader) appHeader.style.display = 'none';
     
     // Initialize quiz data
-    currentQuizData = {
+    window.currentQuizData = {
         ...lessonData,
         currentQuestion: 0,
         score: 0,
@@ -31,11 +33,11 @@ async function startQuiz(lessonData) {
     };
     
     // Load formatter for first question
-    const firstQuestion = currentQuizData.questions[0];
+    const firstQuestion = window.currentQuizData.questions[0];
     const formatterModule = await loadFormatterForQuestion(firstQuestion);
     currentFormatter = formatterModule;
     
-    renderQuizQuestion(currentQuizData, currentFormatter, checkAnswer, exitQuiz);
+    renderQuizQuestion(window.currentQuizData, currentFormatter, checkAnswer, exitQuiz);
     startCircularTimer();
 }
 
@@ -60,19 +62,19 @@ async function loadFormatterForQuestion(question) {
     }
 }
 
-async function checkAnswer(selectedOption, buttonElement) {
-    if (!currentQuizData) return;
+window.checkAnswer = async function(selectedOption, buttonElement) {
+    if (!window.currentQuizData) return;
     
-    if (questionTimer) clearInterval(questionTimer);
+    if (window.questionTimer) clearInterval(window.questionTimer);
     
-    const timeTaken = (Date.now() - questionStartTime) / 1000;
-    const question = currentQuizData.questions[currentQuizData.currentQuestion];
+    const timeTaken = (Date.now() - window.questionStartTime) / 1000;
+    const question = window.currentQuizData.questions[window.currentQuizData.currentQuestion];
     const isCorrect = (selectedOption === question.correct);
     
     if (isCorrect) {
         const pointsEarned = calculatePoints(timeTaken);
         buttonElement.classList.add('correct');
-        currentQuizData.score += pointsEarned;
+        window.currentQuizData.score += pointsEarned;
     } else {
         buttonElement.classList.add('wrong');
         highlightCorrectAnswer(question.correct);
@@ -82,11 +84,11 @@ async function checkAnswer(selectedOption, buttonElement) {
     disableAllButtons();
     
     setTimeout(() => moveToNextQuestion(), 500);
-}
+};
 
 function calculatePoints(timeTaken) {
-    const maxPoints = currentQuizData.maxPointsPerQuestion || 100;
-    const timeLimit = currentQuizData.timePerQuestion || 30;
+    const maxPoints = window.currentQuizData.maxPointsPerQuestion || 100;
+    const timeLimit = window.currentQuizData.timePerQuestion || 30;
     
     let points = maxPoints * (1 - (timeTaken / timeLimit) * 0.5);
     points = Math.round(points);
@@ -96,19 +98,19 @@ function calculatePoints(timeTaken) {
 }
 
 async function moveToNextQuestion() {
-    if (!currentQuizData) return;
+    if (!window.currentQuizData) return;
     
-    if (questionTimer) clearInterval(questionTimer);
+    if (window.questionTimer) clearInterval(window.questionTimer);
     
-    if (currentQuizData.currentQuestion + 1 < currentQuizData.questions.length) {
-        currentQuizData.currentQuestion++;
+    if (window.currentQuizData.currentQuestion + 1 < window.currentQuizData.questions.length) {
+        window.currentQuizData.currentQuestion++;
         
         // Load formatter for next question
-        const nextQuestion = currentQuizData.questions[currentQuizData.currentQuestion];
+        const nextQuestion = window.currentQuizData.questions[window.currentQuizData.currentQuestion];
         const formatterModule = await loadFormatterForQuestion(nextQuestion);
         currentFormatter = formatterModule;
         
-        renderQuizQuestion(currentQuizData, currentFormatter, checkAnswer, exitQuiz);
+        renderQuizQuestion(window.currentQuizData, currentFormatter, checkAnswer, exitQuiz);
         startCircularTimer();
     } else {
         showQuizComplete();
@@ -117,8 +119,8 @@ async function moveToNextQuestion() {
 
 function updateScoreDisplay() {
     const scoreHeaderEl = document.getElementById('quizScoreHeader');
-    if (scoreHeaderEl && currentQuizData) {
-        scoreHeaderEl.textContent = currentQuizData.score;
+    if (scoreHeaderEl && window.currentQuizData) {
+        scoreHeaderEl.textContent = window.currentQuizData.score;
     }
 }
 
@@ -139,16 +141,16 @@ function highlightCorrectAnswer(correctAnswer) {
 }
 
 function startCircularTimer() {
-    if (!currentQuizData) return;
+    if (!window.currentQuizData) return;
     
-    if (questionTimer) clearInterval(questionTimer);
+    if (window.questionTimer) clearInterval(window.questionTimer);
     
-    timeRemaining = currentQuizData.timePerQuestion || 30;
-    questionStartTime = Date.now();
+    window.timeRemaining = window.currentQuizData.timePerQuestion || 30;
+    window.questionStartTime = Date.now();
     
     const timerText = document.getElementById('timerText');
     const timerCircle = document.getElementById('timerCircleProgress');
-    const totalTime = currentQuizData.timePerQuestion || 30;
+    const totalTime = window.currentQuizData.timePerQuestion || 30;
     
     if (!timerText || !timerCircle) return;
     
@@ -156,25 +158,25 @@ function startCircularTimer() {
     timerCircle.style.strokeDasharray = circumference;
     timerCircle.style.strokeDashoffset = '0';
     
-    questionTimer = setInterval(() => {
-        if (!currentQuizData) {
-            clearInterval(questionTimer);
+    window.questionTimer = setInterval(() => {
+        if (!window.currentQuizData) {
+            clearInterval(window.questionTimer);
             return;
         }
         
-        timeRemaining -= 0.1;
+        window.timeRemaining -= 0.1;
         
-        if (timeRemaining <= 0) {
-            clearInterval(questionTimer);
+        if (window.timeRemaining <= 0) {
+            clearInterval(window.questionTimer);
             timerText.textContent = '0';
             timerCircle.style.stroke = '#ef4444';
             handleTimeOut();
             return;
         }
         
-        timerText.textContent = Math.ceil(timeRemaining);
+        timerText.textContent = Math.ceil(window.timeRemaining);
         
-        const progress = timeRemaining / totalTime;
+        const progress = window.timeRemaining / totalTime;
         const dashOffset = circumference * (1 - progress);
         timerCircle.style.strokeDashoffset = dashOffset;
         
@@ -195,34 +197,33 @@ function handleTimeOut() {
 }
 
 function showQuizComplete() {
-    if (!currentQuizData) return;
+    if (!window.currentQuizData) return;
     
-    if (questionTimer) clearInterval(questionTimer);
+    if (window.questionTimer) clearInterval(window.questionTimer);
     
     saveQuizProgress();
     
-    renderQuizComplete(currentQuizData, exitQuiz, () => {
-        currentQuizData.currentQuestion = 0;
-        currentQuizData.score = 0;
-        startQuiz(currentQuizData);
+    renderQuizComplete(window.currentQuizData, exitQuiz, () => {
+        window.currentQuizData.currentQuestion = 0;
+        window.currentQuizData.score = 0;
+        startQuiz(window.currentQuizData);
     });
 }
 
 async function saveQuizProgress() {
-    if (!currentQuizData || !AppState.currentUser) {
+    if (!window.currentQuizData || !AppState.currentUser) {
         console.log('No quiz data or user, skipping save');
         return;
     }
     
     const user = AppState.currentUser;
-    const totalQuestions = currentQuizData.questions.length;
-    const maxPossible = totalQuestions * (currentQuizData.maxPointsPerQuestion || 100);
-    const accuracy = Math.round((currentQuizData.score / maxPossible) * 100);
-    const questionsCorrect = Math.round(currentQuizData.score / (maxPossible / totalQuestions));
-    const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
+    const totalQuestions = window.currentQuizData.questions.length;
+    const maxPossible = totalQuestions * (window.currentQuizData.maxPointsPerQuestion || 100);
+    const accuracy = Math.round((window.currentQuizData.score / maxPossible) * 100);
+    const questionsCorrect = Math.round(window.currentQuizData.score / (maxPossible / totalQuestions));
+    const totalTimeSpent = Math.round((Date.now() - window.quizStartTime) / 1000);
     
     try {
-        // Import getDb dynamically to ensure it's loaded
         const { getDb } = await import('../firebase/firebaseInit.js');
         const db = getDb();
         
@@ -238,9 +239,9 @@ async function saveQuizProgress() {
             classId: AppState.currentClass?.id,
             className: AppState.currentClass?.name,
             subject: AppState.currentSubject,
-            lessonId: currentQuizData.lessonId,
-            lessonTitle: currentQuizData.title,
-            score: currentQuizData.score,
+            lessonId: window.currentQuizData.lessonId,
+            lessonTitle: window.currentQuizData.title,
+            score: window.currentQuizData.score,
             maxPossible: maxPossible,
             accuracy: accuracy,
             questionsCorrect: questionsCorrect,
@@ -259,7 +260,7 @@ async function saveQuizProgress() {
             const userData = userDoc.data();
             const overall = userData.overall || { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 };
             
-            overall.totalPoints = (overall.totalPoints || 0) + currentQuizData.score;
+            overall.totalPoints = (overall.totalPoints || 0) + window.currentQuizData.score;
             overall.quizzesTaken = (overall.quizzesTaken || 0) + 1;
             overall.totalTimeSpent = (overall.totalTimeSpent || 0) + totalTimeSpent;
             
@@ -273,8 +274,8 @@ async function saveQuizProgress() {
     }
 }
 
-function exitQuiz() {
-    if (questionTimer) clearInterval(questionTimer);
+window.exitQuiz = function() {
+    if (window.questionTimer) clearInterval(window.questionTimer);
     
     const appHeader = document.getElementById('app-header');
     if (appHeader) appHeader.style.display = 'flex';
@@ -285,6 +286,6 @@ function exitQuiz() {
     import('../views/lessons.js').then(module => {
         module.renderLessons();
     });
-}
+};
 
 export { startQuiz, checkAnswer, exitQuiz };
