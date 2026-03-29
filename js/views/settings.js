@@ -385,7 +385,7 @@ function showPasswordPrompt() {
                         <input type="password" id="confirmPassword" placeholder="Enter your password" class="auth-input">
                     </div>
                     <div class="modal-buttons">
-                        <button id="cancelDeleteBtn" class="modal-cancel">Cancel</button>
+                        <button     id="cancelDeleteBtn" class="modal-cancel">Cancel</button>
                         <button id="confirmDeleteBtn" class="modal-confirm">Delete Forever</button>
                     </div>
                 </div>

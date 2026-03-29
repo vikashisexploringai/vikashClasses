@@ -1747,86 +1747,14 @@ body.dark-mode .logout-modal-cancel:hover {
     transform: translateY(-1px);
 }
 
-/* ===== DELETE MODAL ===== */
-.delete-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 20px;
-}
-
-.delete-modal {
-    background: white;
-    border-radius: 24px;
-    padding: 24px;
-    max-width: 340px;
-    width: 100%;
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-    animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.delete-modal-icon {
-    font-size: 48px;
-    text-align: center;
-    margin-bottom: 16px;
-}
-
-.delete-modal-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: #0f172a;
-    text-align: center;
-    margin-bottom: 12px;
-}
-
-.delete-modal-message {
-    font-size: 14px;
-    color: #475569;
-    text-align: center;
-    margin-bottom: 16px;
-    line-height: 1.5;
-}
-
-.delete-modal-list {
-    background: #f8fafc;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    list-style: none;
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.8;
-}
-
-.delete-modal-list li {
-    color: #ef4444;
-}
-
-.delete-modal-buttons {
+/* ===== PASSWORD PROMPT MODAL ===== */
+#passwordPromptModal .modal-buttons {
     display: flex;
     gap: 12px;
+    margin-top: 20px;
 }
 
-.delete-modal-cancel,
-.delete-modal-confirm {
+#cancelDeleteBtn {
     flex: 1;
     padding: 14px;
     font-size: 16px;
@@ -1834,27 +1762,30 @@ body.dark-mode .logout-modal-cancel:hover {
     border: none;
     border-radius: 12px;
     cursor: pointer;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
     transition: all 0.2s;
 }
 
-/* Cancel button - Purple gradient like your headers */
-.delete-modal-cancel {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.delete-modal-cancel:hover {
+#cancelDeleteBtn:hover {
     opacity: 0.9;
     transform: translateY(-1px);
 }
 
-/* Delete button - Red */
-.delete-modal-confirm {
+#confirmDeleteBtn {
+    flex: 1;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
     background: #ef4444;
     color: white;
+    transition: all 0.2s;
 }
 
-.delete-modal-confirm:hover {
+#confirmDeleteBtn:hover {
     background: #dc2626;
     transform: translateY(-1px);
 }
