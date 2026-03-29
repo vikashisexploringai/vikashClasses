@@ -733,7 +733,7 @@ window.addEventListener('click', (e) => {
 
 // Back button
 backBtn.addEventListener('click', () => {
-    window.location.href = 'index.html';
+    window.history.back();
 });
 
 // Logout
