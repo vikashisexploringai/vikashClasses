@@ -48,11 +48,16 @@ function renderProgress() {
             }
             
             const userData = userDoc.data();
-            const overall = userData.overall || { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 };
-            
-            const avgAccuracy = overall.quizzesTaken > 0 
-                ? Math.round((overall.totalPoints / (overall.quizzesTaken * 100)) * 100) 
-                : 0;
+            const overall = userData.overall || { 
+    totalPoints: 0, 
+    totalMaxPossible: 0, 
+    quizzesTaken: 0, 
+    totalTimeSpent: 0 
+};
+
+const avgAccuracy = overall.quizzesTaken > 0 && overall.totalMaxPossible > 0
+    ? Math.round((overall.totalPoints / overall.totalMaxPossible) * 100)
+    : 0;
             
             let html = `
                 <div class="progress-container">
