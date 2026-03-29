@@ -14,7 +14,7 @@ import { renderLessons, startLesson, startTest } from './views/lessons.js';
 import { renderProfile } from './views/profile.js';
 import { renderProgress } from './views/progress.js';
 import { renderSettings, setDarkMode, initDarkMode, renderChangePassword, handleChangePassword, confirmDeleteAccount, deleteAccount } from './views/settings.js';
-import { checkAnswer, exitQuiz } from './quiz/quizEngine.js';
+import { startQuiz } from './quiz/quizEngine.js';
 
 // Make functions globally available for inline onclick handlers
 window.renderLogin = renderLogin;
@@ -37,8 +37,7 @@ window.renderChangePassword = renderChangePassword;
 window.handleChangePassword = handleChangePassword;
 window.confirmDeleteAccount = confirmDeleteAccount;
 window.deleteAccount = deleteAccount;
-window.checkAnswer = checkAnswer;
-window.exitQuiz = exitQuiz;
+
 
 // Initialize app on DOM ready
 document.addEventListener('DOMContentLoaded', async () => {
