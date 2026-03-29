@@ -288,4 +288,4 @@ window.exitQuiz = function() {
     });
 };
 
-export { startQuiz, checkAnswer, exitQuiz };
+export { startQuiz};
