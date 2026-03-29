@@ -278,7 +278,6 @@ function cancelDelete() {
 
 async function deleteAccount() {
     try {
-        // Initialize Firebase first
         const { initFirebase, getAuth, getDb } = await import('../firebase/firebaseInit.js');
         await initFirebase();
         
@@ -300,7 +299,21 @@ async function deleteAccount() {
         
         const userId = user.uid;
         
-        showToast('Deleting account...', 'info');
+        // Show password prompt modal for re-authentication
+        const password = await showPasswordPrompt();
+        
+        if (!password) {
+            showToast('Deletion cancelled', 'info');
+            return;
+        }
+        
+        showToast('Re-authenticating...', 'info');
+        
+        // Re-authenticate user
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+        await user.reauthenticateWithCredential(credential);
+        
+        showToast('Authenticated! Deleting account...', 'info');
         
         // 1. Delete all attempts
         const attemptsSnapshot = await db.collection('attempts')
@@ -316,7 +329,7 @@ async function deleteAccount() {
             console.log(`✅ Deleted ${attemptsSnapshot.size} attempts`);
         }
         
-        // 2. Remove student from all classes they are enrolled in
+        // 2. Remove student from all classes
         const classesSnapshot = await db.collection('classes')
             .where('enrolledStudents', 'array-contains', userId)
             .get();
@@ -344,14 +357,65 @@ async function deleteAccount() {
     } catch (error) {
         console.error('Delete account error:', error);
         
-        if (error.code === 'auth/requires-recent-login') {
-            showToast('Please log out and log back in to delete your account', 'error');
+        if (error.code === 'auth/wrong-password') {
+            showToast('Incorrect password. Please try again.', 'error');
+            // Optionally, retry deletion
+        } else if (error.code === 'auth/requires-recent-login') {
+            showToast('Please re-enter your password to delete your account', 'error');
         } else {
             showToast('Failed to delete account: ' + error.message, 'error');
         }
         
         renderSettings();
     }
+}
+
+// Password prompt modal function
+function showPasswordPrompt() {
+    return new Promise((resolve) => {
+        const modalHtml = `
+            <div class="modal-overlay" id="passwordPromptModal" style="display: flex;">
+                <div class="modal-content" style="max-width: 350px;">
+                    <h3>🔐 Confirm Deletion</h3>
+                    <p style="color: #64748b; margin-bottom: 16px;">
+                        Please enter your password to permanently delete your account.
+                    </p>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="confirmPassword" placeholder="Enter your password" class="auth-input">
+                    </div>
+                    <div class="modal-buttons">
+                        <button id="cancelDeleteBtn" class="modal-cancel">Cancel</button>
+                        <button id="confirmDeleteBtn" class="modal-confirm">Delete Forever</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        const modal = document.getElementById('passwordPromptModal');
+        const passwordInput = document.getElementById('confirmPassword');
+        const cancelBtn = document.getElementById('cancelDeleteBtn');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        
+        cancelBtn.addEventListener('click', () => {
+            modal.remove();
+            resolve(null);
+        });
+        
+        confirmBtn.addEventListener('click', () => {
+            const password = passwordInput.value;
+            modal.remove();
+            resolve(password);
+        });
+        
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                confirmBtn.click();
+            }
+        });
+    });
 }
 
 // Make globally available
