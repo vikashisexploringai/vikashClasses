@@ -229,22 +229,12 @@ async function saveQuizProgress() {
     const questionsCorrect = Math.round(window.currentQuizData.score / (maxPossible / totalQuestions));
     const totalTimeSpent = Math.round((Date.now() - window.quizStartTime) / 1000);
     
-    // NEW: Track user answers for each question
-    const userAnswers = [];
-    for (let i = 0; i < window.currentQuizData.questions.length; i++) {
-        const question = window.currentQuizData.questions[i];
-        const userSelected = question.userSelected || null;
-        const isCorrect = userSelected === question.correct;
-        
-        userAnswers.push({
-            questionId: i,
-            questionText: question.question,
-            userSelected: userSelected,
-            correctAnswer: question.correct,
-            isCorrect: isCorrect,
-            explanation: question.explanation || ''
-        });
-    }
+    console.log('Saving quiz progress:', {
+        userId: user.uid,
+        score: window.currentQuizData.score,
+        maxPossible: maxPossible,
+        totalQuestions: totalQuestions
+    });
     
     try {
         const { getDb } = await import('../firebase/firebaseInit.js');
@@ -270,19 +260,40 @@ async function saveQuizProgress() {
             questionsCorrect: questionsCorrect,
             totalQuestions: totalQuestions,
             timeSpent: totalTimeSpent,
-            userAnswers: userAnswers,  // NEW: Store answers
             completedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
         await db.collection('attempts').add(attemptData);
+        console.log('✅ Attempt saved');
         
-        // Update user overall stats...
-        // ... rest of the function
+        // Update user overall stats
+        const userRef = db.collection('users').doc(user.uid);
+        const userDoc = await userRef.get();
+        
+        console.log('User document exists:', userDoc.exists);
+        
+        if (userDoc.exists) {
+            const userData = userDoc.data();
+            const overall = userData.overall || { totalPoints: 0, quizzesTaken: 0, totalTimeSpent: 0 };
+            
+            console.log('Current overall:', overall);
+            
+            overall.totalPoints = (overall.totalPoints || 0) + window.currentQuizData.score;
+            overall.quizzesTaken = (overall.quizzesTaken || 0) + 1;
+            overall.totalTimeSpent = (overall.totalTimeSpent || 0) + totalTimeSpent;
+            
+            console.log('New overall:', overall);
+            
+            await userRef.update({ overall });
+            console.log('✅ User overall updated');
+        } else {
+            console.log('User document not found for update');
+        }
+        
     } catch (error) {
         console.error('Error saving progress:', error);
     }
 }
-
 
 window.exitQuiz = function() {
     if (window.questionTimer) clearInterval(window.questionTimer);
